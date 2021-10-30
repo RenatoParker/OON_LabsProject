@@ -2,7 +2,9 @@ class Line:
     def __init__(self, label, length):
         self._label = label
         self._length = length
-        self._successice = ""
+        self._successive = ""
+        print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
+
 
     def latency_generation(self): float(self._length/(3.33564e-9*(2/3)))
 
