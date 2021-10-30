@@ -1,8 +1,8 @@
 class Signal_information:
-    def __int__(self, signal_power, noise_power, latency, path):
+    def __int__(self, signal_power, path):
         self._signal_power = signal_power
-        self._noise_power = noise_power
-        self._latency = latency
+        self._noise_power = 0.0
+        self._latency = 0.0
         self._path = path
 
     @property
@@ -37,3 +37,14 @@ class Signal_information:
     def path(self, path):
         self._path = path
 
+    def increment_power(self, increment):
+        self._signal_power += increment
+
+    def increment_latency(self, increment):
+        self._latency *= increment
+
+    def increment_noise(self, increment):
+        self._noise_power *= increment
+
+    def add_path(self, new_element):
+        self._path.append(new_element)
