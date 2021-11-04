@@ -1,5 +1,4 @@
 import json
-import uuid
 
 from Node import Node
 from Line import Line
@@ -100,8 +99,6 @@ class Network:
 net = Network()
 net.connect()
 # net.draw()
-
-# net.test("A","B")
 paths = net.find_all_paths("A", "B")
 print(paths)
 
