@@ -1,7 +1,9 @@
 import json
+import pandas as pd
 
 from Node import Node
 from Line import Line
+from SignalInformation import SignalInformation
 import math
 import matplotlib.pyplot as plt
 
@@ -12,7 +14,6 @@ class Network:
         self._lineList = list()
         with open("../Resource/nodes.json", "r") as read_file:
             self._nodes = json.load(read_file)
-            # print(self._nodes)
             for nodeKey, nodeValue in self._nodes.items():
                 nodeData = nodeValue
                 nodeData["label"] = nodeKey
@@ -39,6 +40,10 @@ class Network:
     def nodes(self):
         return self._nodes
 
+    @property
+    def lineList(self):
+        return self._lineList
+
     # each node must have a dict of lines and each line must have a dictionary of a node
     def connect(self):
         for node in self._nodeList:
@@ -53,7 +58,11 @@ class Network:
 
 
     def propagate(self, signal_information):
-        return
+        print(self._nodeList)
+        start_node = next((x for x in self._nodeList if x.label == signal_information.path[0]))
+        propagated_signal_information = start_node.propagate(signal_information)
+        return propagated_signal_information
+
 
     def draw(self):
         figure, axes = plt.subplots()
@@ -79,7 +88,7 @@ class Network:
 
 
 
-    def find_all_paths(self, start, end, path=[]):
+    def find_paths(self, start, end, path=[]):
         graph = self._nodes
         path = path + [start]
         if start == end:
@@ -89,7 +98,7 @@ class Network:
         paths = []
         for node in graph[start].get("connected_nodes"):
             if node not in path:
-                newpaths = self.find_all_paths(node, end, path)
+                newpaths = self.find_paths(node, end, path)
                 for newpath in newpaths:
                     paths.append(newpath)
         return paths
@@ -99,7 +108,26 @@ class Network:
 net = Network()
 net.connect()
 # net.draw()
-paths = net.find_all_paths("A", "B")
+paths = net.find_paths("A", "F")
+signalInfo = SignalInformation(10, paths[0])
+net.propagate(signalInfo)
 print(paths)
+
+totalPaths = []
+
+
+for startingNode in net.nodes:
+    for endingNode in net.nodes:
+        paths = net.find_paths(startingNode, endingNode)
+        for path in paths:
+            formattedPath = ""
+            for node in path:
+                formattedPath = formattedPath + node + " -> "
+            formattedPath = formattedPath[:-3]
+            totalPaths.append([formattedPath, 0 , 0 , 0])
+
+
+data = pd.DataFrame(totalPaths, columns=["Path","latency" ,"signal_noise" , "noiseAt1mW"])
+print(data)
 
 

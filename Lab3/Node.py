@@ -41,7 +41,13 @@ class Node:
         self._successive = successive
 
     def propagate(self, signal_information):
-        signal_information.add_path(self._successive)
-#         todo call the successive element propagate method, accordingly to the specified path.
-#         next()
-        self._successive.pop().propagate()
+        #         todo call the successive element propagate method, accordingly to the specified path.
+        if len(signal_information.path) > 1:
+            signal_information.path.pop(0)
+            print(signal_information.path[0])
+            for line in self._successive:
+                if line[1] == signal_information.path[0]:
+                    print("find:", line)
+
+            return signal_information
+

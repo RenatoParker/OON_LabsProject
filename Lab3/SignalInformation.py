@@ -1,9 +1,10 @@
-class Signal_information:
-    def __int__(self, signal_power, path):
+class SignalInformation:
+    def __init__(self, signal_power, path):
         self._signal_power = signal_power
         self._noise_power = 0.0
         self._latency = 0.0
         self._path = path
+        print("New Signal Information created: \t Power:", self._signal_power, "\t Path:", self._path)
 
     @property
     def signal_power(self):
