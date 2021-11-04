@@ -1,4 +1,6 @@
 import json
+import uuid
+
 from Node import Node
 from Line import Line
 import math
@@ -30,35 +32,25 @@ class Network:
                     newLine = Line(label, dist)
                     self._lineList.append(newLine)
 
+    @property
+    def nodeList(self):
+        return self._nodeList
+
+    @property
+    def nodes(self):
+        return self._nodes
+
     # each node must have a dict of lines and each line must have a dictionary of a node
     def connect(self):
         for node in self._nodeList:
-           for line in self._lineList:
-               if line.label.startswith(node.label):
-                   node.successive[line.label]=line
+            for line in self._lineList:
+                if line.label.startswith(node.label):
+                    node.successive[line.label] = line
 
         for line in self._lineList:
             for label in line.label:
                 node = next((x for x in self._nodeList if x.label == label))
                 line.successive[label] = node
-
-
-    def find_paths(self, labelA, labelB):
-        nodes = self._nodeList.copy()
-        paths = list()
-        while len(nodes) > 0:
-            path = []
-            crossed = list()
-            nodeA = next((x for x in self._nodeList if x.label == labelA))
-            nodes.remove(nodeA)
-            path.append(nodeA.label)
-            neighbors = nodeA.successive.keys()
-            for neighbor in neighbors:
-                self.find_paths(neighbor.label, labelB)
-
-    def recursive_find_paths(self , labelA, labelB, crossed):
-        return
-        # while len(nodes)> 1:
 
 
     def propagate(self, signal_information):
@@ -85,6 +77,32 @@ class Network:
             plt.plot(x_values, y_values, color="b")
         plt.show()
 
+
+
+
+    def find_all_paths(self, start, end, path=[]):
+        graph = self._nodes
+        path = path + [start]
+        if start == end:
+            return [path]
+        if start not in graph:
+            return []
+        paths = []
+        for node in graph[start].get("connected_nodes"):
+            if node not in path:
+                newpaths = self.find_all_paths(node, end, path)
+                for newpath in newpaths:
+                    paths.append(newpath)
+        return paths
+
+
+
 net = Network()
 net.connect()
-net.draw()
+# net.draw()
+
+# net.test("A","B")
+paths = net.find_all_paths("A", "B")
+print(paths)
+
+
