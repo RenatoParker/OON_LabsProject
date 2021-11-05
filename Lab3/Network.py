@@ -58,10 +58,10 @@ class Network:
 
 
     def propagate(self, signal_information):
-        print(self._nodeList)
-        start_node = next((x for x in self._nodeList if x.label == signal_information.path[0]))
-        propagated_signal_information = start_node.propagate(signal_information)
-        return propagated_signal_information
+        while len(signal_information.path) > 1:
+            start_node = next((x for x in self._nodeList if x.label == signal_information.path[0]))
+            signal_information = start_node.propagate(signal_information)
+        return signal_information
 
 
     def draw(self):
