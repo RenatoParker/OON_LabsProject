@@ -1,3 +1,6 @@
+import scipy.constants
+
+
 class Line:
     def __init__(self, label, length):
         self._label = label
@@ -30,7 +33,7 @@ class Line:
         self._successive = successive
 
     def latency_generation(self):
-        return float(self._length / (3.33564e-9 * (2 / 3)))
+        return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
     def noise_generation(self, signal_power):
         return 1e-9 * signal_power * self._length
