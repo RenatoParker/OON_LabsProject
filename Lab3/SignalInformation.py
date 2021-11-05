@@ -42,10 +42,10 @@ class SignalInformation:
         self._signal_power += increment
 
     def increment_latency(self, increment):
-        self._latency *= increment
+        self._latency = self._latency + increment
 
     def increment_noise(self, increment):
-        self._noise_power *= increment
+        self._noise_power = self.noise_power + increment
 
     def add_path(self, new_element):
         self._path.append(new_element)

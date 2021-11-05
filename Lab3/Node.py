@@ -40,10 +40,13 @@ class Node:
     def successive(self, successive):
         self._successive = successive
 
-    def propagate(self, signal_information):
-        # todo call the successive element propagate method, accordingly to the specified path.
+    def propagate(self, signal_information,line):
         if len(signal_information.path) > 1:
             signal_information.path.pop(0)
-            print("Propagate:", signal_information.path)
+            latency = line.latency_generation()
+            noise = line.noise_generation(signal_information.signal_power)
+            signal_information.increment_latency(latency)
+            signal_information.increment_noise(noise)
+            print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
             return signal_information
 

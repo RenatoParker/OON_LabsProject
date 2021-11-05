@@ -56,13 +56,13 @@ class Network:
                 node = next((x for x in self._nodeList if x.label == label))
                 line.successive[label] = node
 
-
     def propagate(self, signal_information):
         while len(signal_information.path) > 1:
             start_node = next((x for x in self._nodeList if x.label == signal_information.path[0]))
-            signal_information = start_node.propagate(signal_information)
+            nextNodeLabel = signal_information.path[1]
+            line = next((x for x in self._lineList if x.label == signal_information.path[0] + nextNodeLabel))
+            signal_information = start_node.propagate(signal_information, line)
         return signal_information
-
 
     def draw(self):
         figure, axes = plt.subplots()
@@ -85,9 +85,6 @@ class Network:
             plt.plot(x_values, y_values, color="b")
         plt.show()
 
-
-
-
     def find_paths(self, start, end, path=[]):
         graph = self._nodes
         path = path + [start]
@@ -104,7 +101,6 @@ class Network:
         return paths
 
 
-
 net = Network()
 net.connect()
 # net.draw()
@@ -115,7 +111,6 @@ print(paths)
 
 totalPaths = []
 
-
 for startingNode in net.nodes:
     for endingNode in net.nodes:
         paths = net.find_paths(startingNode, endingNode)
@@ -124,10 +119,12 @@ for startingNode in net.nodes:
             for node in path:
                 formattedPath = formattedPath + node + " -> "
             formattedPath = formattedPath[:-3]
-            totalPaths.append([formattedPath, 0 , 0 , 0])
+            signalPropagated = net.propagate(SignalInformation(0.001, path))
+            if signalPropagated.noise_power > 0:
+                noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
+            else:
+                noise_ratio = 0
+            totalPaths.append([formattedPath, signalPropagated.latency, signalPropagated.noise_power, noise_ratio])
 
-
-data = pd.DataFrame(totalPaths, columns=["Path","latency" ,"signal_noise" , "noiseAt1mW"])
+data = pd.DataFrame(totalPaths, columns=["Path", "latency", "signal_noise", "noise_ratio"])
 print(data)
-
-

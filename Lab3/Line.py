@@ -29,9 +29,11 @@ class Line:
     def successive(self, successive):
         self._successive = successive
 
-    def latency_generation(self): float(self._length / (3.33564e-9 * (2 / 3)))
+    def latency_generation(self):
+        return float(self._length / (3.33564e-9 * (2 / 3)))
 
-    def noise_generation(self, signal_power): 1e-9 * signal_power * self._length
+    def noise_generation(self, signal_power):
+        return 1e-9 * signal_power * self._length
 
     # Define a propagate method that updates the signal information modifying its
     # noise power and its latency and call the successive element propagate method,
