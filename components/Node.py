@@ -47,6 +47,6 @@ class Node:
             noise = line.noise_generation(signal_information.signal_power)
             signal_information.increment_latency(latency)
             signal_information.increment_noise(noise)
-            print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
+            # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
             return signal_information
 

@@ -50,9 +50,10 @@ class Network:
 
     def propagate(self, signal_information):
         while len(signal_information.path) > 1:
-            start_node = next((x for x in self._nodeList if x.label == signal_information.path[0]))
-            nextNodeLabel = signal_information.path[1]
-            line = next((x for x in self._lineList if x.label == signal_information.path[0] + nextNodeLabel))
+            start_node = self._nodes[signal_information.path[0]]
+            line = self._lines[signal_information.path[0] + signal_information.path[1]]
+            # nextNodeLabel = signal_information.path[1]
+            # line = next((x for x in self._lineList if x.label == signal_information.path[0] + nextNodeLabel))
             signal_information = start_node.propagate(signal_information, line)
         return signal_information
 
@@ -95,21 +96,30 @@ class Network:
 
     def stream(self, connections, label="latency"):
         for connection in connections:
-            connectionPaths = self.find_paths(connection.input, connection.output)
-            firstPath = self.propagate(SignalInformation(0.01, connectionPaths[0]))
+            connectionPaths = self.find_paths(connection.input.label, connection.output.label)
+            print(connectionPaths, connectionPaths[0])
+            firstPath = self.propagate(SignalInformation.SignalInformation(0.01, connectionPaths[0]))
             bestLatency = firstPath.latency
             bestPath = connectionPaths[0]
-            bestSNR = 10 * math.log(0.001 / firstPath.noise_power, 10)
+            if firstPath.noise_power == 0:
+                bestSNR = 0
+            else:
+                bestSNR = 10 * math.log(0.001 / firstPath.noise_power, 10)
             for streamPath in connectionPaths:
-                streamSignalProgagated = self.propagate(SignalInformation(0.01, streamPath))
+                print("STREAM PATH", streamPath)
+                streamSignalProgagated = self.propagate(SignalInformation.SignalInformation(0.01, streamPath))
                 latency = streamSignalProgagated.latency
-                snr = 10 * math.log(0.001 / streamSignalProgagated.noise_power, 10)
-                if label == "latency" & latency < bestLatency:
+                print(latency, streamPath)
+                if streamSignalProgagated.noise_power == 0:
+                    snr = 0
+                else:
+                    snr = 10 * math.log(0.001 / streamSignalProgagated.noise_power, 10)
+                if (label == "latency") & (latency < bestLatency) & (latency != 0.0):
                     bestPath = streamPath
                     bestLatency = latency
                     bestSNR = snr
                 else:
-                    if label == "snr" & snr < bestSNR:
+                    if (label == "snr") & (snr > bestSNR):
                         bestPath = streamPath
                         bestLatency = latency
                         bestSNR = snr
@@ -117,11 +127,7 @@ class Network:
                 connection.snr = bestSNR
 
 
-# paths = net.find_paths("A", "F")
-# signalInfo = SignalInformation(10, paths[0])
-# net.propagate(signalInfo)
-# print(paths)
-#
+
 # totalPaths = []
 #
 # for startingNode in net.nodes:
