@@ -82,10 +82,11 @@ class Network:
         path = path + [start]
         if start == end:
             return [path]
-        if start not in graph:
+        if start not in graph.keys():
+            print("non in chart")
             return []
         paths = []
-        for node in graph[start].get("connected_nodes"):
+        for node in graph[start].connected_node:
             if node not in path:
                 newpaths = self.find_paths(node, end, path)
                 for newpath in newpaths:
@@ -116,9 +117,6 @@ class Network:
                 connection.snr = bestSNR
 
 
-# net = Network()
-# net.connect()
-# # net.draw()
 # paths = net.find_paths("A", "F")
 # signalInfo = SignalInformation(10, paths[0])
 # net.propagate(signalInfo)
