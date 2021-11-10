@@ -15,4 +15,5 @@ if __name__ == '__main__':
             nodes[nodeKey] = new_node
 
     net = Network.Network(nodes)
+    net.connect()
 

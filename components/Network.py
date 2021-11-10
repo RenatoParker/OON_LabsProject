@@ -12,7 +12,6 @@ class Network:
     def __init__(self, nodes):
         self._nodes = nodes
         self._lines = {}
-        print("build", type(nodes))
 
         for node in self._nodes.values():
             for connectedNode in node.connected_node:
@@ -40,15 +39,14 @@ class Network:
 
     # each node must have a dict of lines and each line must have a dictionary of a node
     def connect(self):
-        for node in self._nodeList:
-            for line in self._lineList:
-                if line.label.startswith(node.label):
-                    node.successive[line.label] = line
+        for nodeLabel, node in self._nodes.items():
+            for lineLabel,line in self._lines.items():
+                if lineLabel.startswith(nodeLabel):
+                    node.successive[lineLabel] = line
 
-        for line in self._lineList:
-            for label in line.label:
-                node = next((x for x in self._nodeList if x.label == label))
-                line.successive[label] = node
+        for lineLabel, line in self._lines.items():
+            for letter in line.label:
+                line.successive[letter] = self._nodes[letter]
 
     def propagate(self, signal_information):
         while len(signal_information.path) > 1:
