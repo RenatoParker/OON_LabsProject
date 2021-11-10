@@ -100,6 +100,29 @@ class Network:
                     paths.append(newpath)
         return paths
 
+    def stream(self, connections, label="latency"):
+        for connection in connections:
+            connectionPaths = self.find_paths(connection.input, connection.output)
+            firstPath = self.propagate(SignalInformation(0.01, connectionPaths[0]))
+            bestLatency = firstPath.latency
+            bestPath = connectionPaths[0]
+            bestSNR = 10 * math.log(0.001 / firstPath.noise_power, 10)
+            for streamPath in connectionPaths:
+                streamSignalProgagated = self.propagate(SignalInformation(0.01, streamPath))
+                latency = streamSignalProgagated.latency
+                snr = 10 * math.log(0.001 / streamSignalProgagated.noise_power, 10)
+                if label == "latency" & latency < bestLatency:
+                    bestPath = streamPath
+                    bestLatency = latency
+                    bestSNR = snr
+                else:
+                    if label == "snr" & snr < bestSNR:
+                        bestPath = streamPath
+                        bestLatency = latency
+                        bestSNR = snr
+                connection.latency = bestLatency
+                connection.snr = bestSNR
+
 
 net = Network()
 net.connect()

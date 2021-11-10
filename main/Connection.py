@@ -3,7 +3,7 @@ class Connection:
         self._input = input
         self._output = output
         self._signal_power = signal_power
-        self._latency = 0
+        self._latency = float(0)
         self._snr = float(0)
 
     @property
