@@ -60,16 +60,16 @@ class Network:
         figure, axes = plt.subplots()
         plt.xlim(-800000, 800000)
         plt.ylim(-800000, 800000)
-        for node in self._nodeList:
+        for node in self._nodes.values():
             print(node.position[0], node.position[1])
             draw_circle = plt.Circle((node.position[0], node.position[1]), 30000, color='r')
             axes.add_artist(draw_circle)
 
-        for line in self._lineList:
+        for line in self._lines.values():
             labelA = line.label[0]
             labelB = line.label[1]
-            nodeA = next((x for x in self._nodeList if x.label == labelA))
-            nodeB = next((x for x in self._nodeList if x.label == labelB))
+            nodeA = self._nodes[labelA]
+            nodeB = self._nodes[labelB]
             point1 = [nodeA.position[0], nodeA.position[1]]
             point2 = [nodeB.position[0], nodeB.position[1]]
             x_values = [point1[0], point2[0]]

@@ -16,4 +16,5 @@ if __name__ == '__main__':
 
     net = Network.Network(nodes)
     net.connect()
+    # net.draw()
 
