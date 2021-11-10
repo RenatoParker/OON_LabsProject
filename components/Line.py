@@ -6,6 +6,7 @@ class Line:
         self._label = label
         self._length = length
         self._successive = dict()
+        self._state = "free"
         print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
 
     @property
