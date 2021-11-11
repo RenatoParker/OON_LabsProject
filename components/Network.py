@@ -48,7 +48,8 @@ class Network:
                     for node in path:
                         formattedPath = formattedPath + node + " -> "
                     formattedPath = formattedPath[:-3]
-                    signalPropagated = self.propagate(SignalInformation.SignalInformation(0.001, path))
+                    signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
+
                     if signalPropagated.noise_power > 0:
                         noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
                     else:
@@ -71,6 +72,14 @@ class Network:
                 line.successive[letter] = self._nodes[letter]
 
     def propagate(self, signal_information):
+        while len(signal_information.path) > 1:
+            start_node = self._nodes[signal_information.path[0]]
+            line = self._lines[signal_information.path[0] + signal_information.path[1]]
+            line._state = False
+            signal_information = start_node.propagate(signal_information, line)
+        return signal_information
+
+    def probe(self, signal_information):
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
@@ -114,33 +123,35 @@ class Network:
                     paths.append(newpath)
         return paths
 
+    def checkIfPathIsFree(self, path):
+        tempPath = path.copy()
+        isFree = True
+        while len(tempPath) > 1:
+            isFree = self._lines[path[0]+path[1]].state
+            tempPath.pop(0)
+        return isFree
+
+
     def find_best_snr(self, nodeA, nodeB):
         paths = self.find_paths(nodeA, nodeB)
-        bestPath = paths[0]
-        firstPathSignal = self.propagate(SignalInformation.SignalInformation(0.01, paths[0]))
-        if firstPathSignal.noise_power == 0:
-            bestSNR = 0
-        else:
-            bestSNR = 10 * math.log(0.001 / firstPathSignal.noise_power, 10)
-        for path in paths[1:]:
-            tempPath = path.copy()
-            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, tempPath))
+        bestPath = []
+        bestSNR = 0
+        for path in paths:
+            pathSignal = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
             if pathSignal.noise_power != 0:
                 snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
-                if snr > bestSNR:
+                if (snr > bestSNR) & (self.checkIfPathIsFree(path)):
                     bestSNR = snr
                     bestPath = path
         return bestPath
 
     def find_best_latency(self, nodeA, nodeB):
         paths = self.find_paths(nodeA, nodeB)
-        bestPath = paths[0]
-        firstPathSignal = self.propagate(SignalInformation.SignalInformation(0.01, paths[0]))
-        bestLatency = firstPathSignal.latency
-        for path in paths[1:]:
-            tempPath = path.copy()
-            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, tempPath))
-            if pathSignal.latency < bestLatency:
+        bestLatency = float("inf")
+        bestPath = []
+        for path in paths:
+            pathSignal = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
+            if (pathSignal.latency < bestLatency) & self.checkIfPathIsFree(path):
                 bestLatency = pathSignal.latency
                 bestPath = path
         return bestPath
@@ -151,29 +162,15 @@ class Network:
                 path = self.find_best_latency(connection.input.label, connection.output.label)
             else:
                 path = self.find_best_snr(connection.input.label, connection.output.label)
-            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, path))
-            connection.latency = pathSignal.latency
-            if pathSignal.noise_power != 0:
-                connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
-            else:
+            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, path.copy()))
+            if len(path) == 0:
+                print("No available path found")
                 connection.snr = 0
-
-# totalPaths = []
-#
-# for startingNode in net.nodes:
-#     for endingNode in net.nodes:
-#         paths = net.find_paths(startingNode, endingNode)
-#         for path in paths:
-#             formattedPath = ""
-#             for node in path:
-#                 formattedPath = formattedPath + node + " -> "
-#             formattedPath = formattedPath[:-3]
-#             signalPropagated = net.propagate(SignalInformation(0.001, path))
-#             if signalPropagated.noise_power > 0:
-#                 noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
-#             else:
-#                 noise_ratio = 0
-#             totalPaths.append([formattedPath, signalPropagated.latency, signalPropagated.noise_power, noise_ratio])
-#
-# data = pd.DataFrame(totalPaths, columns=["Path", "latency", "signal_noise", "noise_ratio"])
-# print(data)
+                connection.latency = None
+            else:
+                print("New path occupied:", path)
+                connection.latency = pathSignal.latency
+                if pathSignal.noise_power != 0:
+                    connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
+                else:
+                    connection.snr = 0

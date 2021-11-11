@@ -34,6 +34,14 @@ class Line:
     def successive(self, successive):
         self._successive = successive
 
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, state):
+        self._state = state
+
     def latency_generation(self):
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
