@@ -30,10 +30,10 @@ if __name__ == '__main__':
     for i in range(100):
         connectionsList.append(Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
     net.stream(connectionsList, "latency")
-    for i in connectionsList:
-        print("Latency: ", i.latency, "SNR:", i.snr, i.input.label, i.output.label)
+    # for i in connectionsList:
+    #     print("Latency: ", i.latency, "SNR:", i.snr, i.input.label, i.output.label)
 
     net.stream(connectionsList, "snr")
-    for i in connectionsList:
-        print("Latency: ", i.latency, "SNR:", i.snr, i.input.label, i.output.label)
+    # for i in connectionsList:
+    #     print("Latency: ", i.latency, "SNR:", i.snr, i.input.label, i.output.label)
 
