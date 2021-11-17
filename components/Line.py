@@ -7,7 +7,7 @@ class Line:
         self._length = length
         self._successive = dict()
         # True means that the line is in state free
-        self._state = True
+        self._state = [True] * 10
         print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
 
     @property

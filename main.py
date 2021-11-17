@@ -25,6 +25,8 @@ if __name__ == '__main__':
     # net.draw()
     # net.find_best_snr("A", "F")
     # net.find_best_latency("A", "F")
+    net.initRouteSpace()
+    # net.checkIfPathIsFree(["A", "B"])
 
     connectionsList = []
     for i in range(100):

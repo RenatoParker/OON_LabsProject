@@ -7,12 +7,14 @@ from components import SignalInformation
 import math
 import matplotlib.pyplot as plt
 
+# pd.options.mode.chained_assignment = None  # default='warn'
 
 class Network:
     def __init__(self, nodes):
         self._nodes = nodes
         self._lines = {}
         self._weighted_paths = None
+        self._route_space = pd.DataFrame(None, columns=["Path", "Channel", "Status"])
 
         for node in self._nodes.values():
             for connectedNode in node.connected_node:
@@ -37,6 +39,32 @@ class Network:
     @property
     def weighted_paths(self):
         return self._weighted_paths
+
+    @property
+    def route_space(self):
+        return self._route_space
+
+    @route_space.setter
+    def route_space(self, route_space):
+        self._route_space = route_space
+
+    def initRouteSpace(self):
+        data = []
+        for startingNode in self._nodes:
+            for endNode in self._nodes:
+                if startingNode != endNode:
+                    paths = self.find_paths(startingNode, endNode)
+                    availability = False
+                    for path in paths:
+                        for channel in range(10):
+                            tempPath = path.copy()
+                            while len(tempPath) > 1:
+                                availability = self._lines[tempPath[0] + tempPath[1]].state[channel]
+                                tempPath.pop(0)
+                            data.append([path, channel, availability])
+        self._route_space = pd.DataFrame(data, columns=["Path", "Channel", "Status"])
+        pd.set_option('display.max_rows', 30)
+        print(self._route_space)
 
     def computeWeightedPaths(self):
         totalPaths = []
@@ -71,11 +99,15 @@ class Network:
             for letter in line.label:
                 line.successive[letter] = self._nodes[letter]
 
-    def propagate(self, signal_information):
+    def propagate(self, signal_information, channel):
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
-            line._state = False
+            line.state[channel] = False
+            # print("Line da occupare:", line.label, " at channel:", channel)
+            self._route_space.loc[(self._route_space["Channel"] == channel) & (   self._route_space.Path.apply(lambda x: (line.label[0] in x) & (line.label[1] in x))) , ["Status"]] = False
+            # self._route_space.loc[self._route_space.Path.apply(lambda x: (line.label[0] in x) & (line.label[1] in x)) , ["Status"]] = False
+            # print("Occuping:")
             signal_information = start_node.propagate(signal_information, line)
         return signal_information
 
@@ -123,52 +155,63 @@ class Network:
                     paths.append(newpath)
         return paths
 
-    def checkIfPathIsFree(self, path):
-        tempPath = path.copy()
-        isFree = True
-        while len(tempPath) > 1:
-            isFree = self._lines[path[0]+path[1]].state
-            tempPath.pop(0)
-        return isFree
-
+    def getFreeChannelOnPath(self, path):
+        query = self._route_space[(self._route_space["Path"].isin([path]))]
+        # print("Query:\n", query)
+        status = query[query["Status"] == True]
+        # print("status:\n", status)
+        firstChannelFree = status["Channel"].head(1).values
+        if len(firstChannelFree) > 0:
+            # print("Channel found:", firstChannelFree[0], " for path: ", path)
+            return firstChannelFree[0]
+        else:
+            # print("no free channel found for path:", path)
+            return None
 
     def find_best_snr(self, nodeA, nodeB):
         paths = self.find_paths(nodeA, nodeB)
         bestPath = []
         bestSNR = 0
+        channel = None
         for path in paths:
             pathSignal = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
             if pathSignal.noise_power != 0:
                 snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
-                if (snr > bestSNR) & (self.checkIfPathIsFree(path)):
+                freeChannel = self.getFreeChannelOnPath(path)
+                if (snr > bestSNR) & (freeChannel is not None):
                     bestSNR = snr
                     bestPath = path
-        return bestPath
+                    channel = freeChannel
+        return bestPath, channel
 
     def find_best_latency(self, nodeA, nodeB):
         paths = self.find_paths(nodeA, nodeB)
         bestLatency = float("inf")
         bestPath = []
+        channel = None
         for path in paths:
             pathSignal = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
-            if (pathSignal.latency < bestLatency) & self.checkIfPathIsFree(path):
+            # snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
+            freeChannel = self.getFreeChannelOnPath(path)
+            if (pathSignal.latency < bestLatency) & (freeChannel is not None):
                 bestLatency = pathSignal.latency
                 bestPath = path
-        return bestPath
+                channel = freeChannel
+        return bestPath, channel
 
     def stream(self, connections, label="latency"):
         for connection in connections:
             if label == "latency":
-                path = self.find_best_latency(connection.input.label, connection.output.label)
+                pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
             else:
-                path = self.find_best_snr(connection.input.label, connection.output.label)
-            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, path.copy()))
-            if len(path) == 0:
+                pathAndChannel = self.find_best_snr(connection.input.label, connection.output.label)
+            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),pathAndChannel[1] )
+            if len(pathAndChannel[0]) == 0:
                 print("No available path found")
                 connection.snr = 0
                 connection.latency = None
             else:
-                print("New path occupied:", path)
+                print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
                 connection.latency = pathSignal.latency
                 if pathSignal.noise_power != 0:
                     connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)

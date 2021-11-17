@@ -6,8 +6,6 @@ class Node:
         self._successive = dict()
         print("New node created:", "\t", "Label: ", self._label, "\t", "Position:", self._position, "\t", "Connected Node: ", self._connected_node)
 
-
-
     @property
     def label(self):
         return self._label
