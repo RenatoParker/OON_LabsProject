@@ -7,7 +7,6 @@ from components import SignalInformation
 import math
 import matplotlib.pyplot as plt
 
-# pd.options.mode.chained_assignment = None  # default='warn'
 
 class Network:
     def __init__(self, nodes):
@@ -99,15 +98,21 @@ class Network:
             for letter in line.label:
                 line.successive[letter] = self._nodes[letter]
 
+    def check(self, list, A, B):
+        if (A in list):
+            if (list.index(A) < (len(list)-1) ):
+                if list[ list.index(A) + 1 ] == B:
+                    return True
+                else:
+                    return False
+
+
     def propagate(self, signal_information, channel):
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
             line.state[channel] = False
-            # print("Line da occupare:", line.label, " at channel:", channel)
-            self._route_space.loc[(self._route_space["Channel"] == channel) & (   self._route_space.Path.apply(lambda x: (line.label[0] in x) & (line.label[1] in x))) , ["Status"]] = False
-            # self._route_space.loc[self._route_space.Path.apply(lambda x: (line.label[0] in x) & (line.label[1] in x)) , ["Status"]] = False
-            # print("Occuping:")
+            self._route_space.loc[(self._route_space["Channel"] == channel) & (self._route_space.Path.apply(lambda x: self.check(x, line.label[0] , line.label[1]) ) ) , ["Status"]] = False
             signal_information = start_node.propagate(signal_information, line)
         return signal_information
 
