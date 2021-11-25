@@ -4,7 +4,11 @@ class Node:
         self._position = data["position"]
         self._connected_node = data["connected_nodes"]
         self._successive = dict()
-        print("New node created:", "\t", "Label: ", self._label, "\t", "Position:", self._position, "\t", "Connected Node: ", self._connected_node)
+        self._switching_matrix = None
+        print("New node created:", "\t",
+              "Label: ", self._label, "\t",
+              "Position:", self._position, "\t",
+              "Connected Node: ", self._connected_node)
 
     @property
     def label(self):

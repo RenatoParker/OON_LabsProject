@@ -6,6 +6,8 @@ from components import Line
 from components import SignalInformation
 import math
 import matplotlib.pyplot as plt
+import numpy as np
+import itertools
 
 
 class Network:
@@ -13,7 +15,9 @@ class Network:
         self._nodes = nodes
         self._lines = {}
         self._weighted_paths = None
-        self._route_space = pd.DataFrame(None, columns=["Path", "Channel", "Status"])
+        self._switching_matrix = {}  # todo: non devo metterla nel costruttore?
+
+        self._route_space = pd.DataFrame(None, columns=["Path", "Status"])
 
         for node in self._nodes.values():
             for connectedNode in node.connected_node:
@@ -48,20 +52,21 @@ class Network:
         self._route_space = route_space
 
     def initRouteSpace(self):
+        # sto modificando in modo da avere una sola riga per ogni path
         data = []
         for startingNode in self._nodes:
             for endNode in self._nodes:
                 if startingNode != endNode:
                     paths = self.find_paths(startingNode, endNode)
-                    availability = False
+                    availability = np.array([0] * 10, int)
                     for path in paths:
                         for channel in range(10):
                             tempPath = path.copy()
                             while len(tempPath) > 1:
-                                availability = self._lines[tempPath[0] + tempPath[1]].state[channel]
+                                availability[channel] = self._lines[tempPath[0] + tempPath[1]].state[channel]
                                 tempPath.pop(0)
-                            data.append([path, channel, availability])
-        self._route_space = pd.DataFrame(data, columns=["Path", "Channel", "Status"])
+                        data.append([path, availability])
+        self._route_space = pd.DataFrame(data, columns=["Path", "Status"])
         pd.set_option('display.max_rows', 30)
         print(self._route_space)
 
@@ -90,29 +95,84 @@ class Network:
     # each node must have a dict of lines and each line must have a dictionary of a node
     def connect(self):
         for nodeLabel, node in self._nodes.items():
-            for lineLabel, line in self._lines.items():
-                if lineLabel.startswith(nodeLabel):
-                    node.successive[lineLabel] = line
+            internalDict = {}
+            for nodeLabelInternal, nodeInternal in self._nodes.items():
+                if nodeLabel == nodeLabelInternal:
+                    internalDict[nodeLabelInternal] = np.array([0] * 10, int)
+                else:
+                    internalDict[nodeLabelInternal] = np.array([1] * 10, int)
+            print(internalDict)
+            self._switching_matrix[nodeLabel] = internalDict
+        print(self._switching_matrix)
 
-        for lineLabel, line in self._lines.items():
-            for letter in line.label:
-                line.successive[letter] = self._nodes[letter]
-
-    def check(self, list, A, B):
-        if (A in list):
-            if (list.index(A) < (len(list)-1) ):
-                if list[ list.index(A) + 1 ] == B:
+    def findPathUsingLine(self, pathList, A, B):
+        if A in pathList:
+            if pathList.index(A) < (len(pathList) - 1):
+                if pathList[pathList.index(A) + 1] == B:
                     return True
                 else:
                     return False
+
+    def isSubPath(self, pathExt, pathInt):
+        isSubPath = False
+        if len(pathExt) <= len(pathInt):
+            return isSubPath
+        else:
+            if pathInt[0] not in pathExt:
+                return isSubPath
+            index = pathExt.index(pathInt[0])
+            for i in pathInt:
+                if index > (len(pathExt) -1 ):
+                    return isSubPath
+                if pathExt[index] == i:
+                    index += 1
+                else:
+                    return isSubPath
+            isSubPath = True
+            return isSubPath
+
+
+    def updateRouteSpace(self, path):
+        # print("path to be update", path)
+
+        # devo fare un for per ogni possibile path che si generara un quella linea """
+        # se le mie linee
+        # se ho ABCD devo aggiornare AB , BC, CD , ABC , BCD  , ABCD
+
+        # ricavo tutti i path per i quali devo fare un aggiornamento
+        allPaths = [path[i:j] for i, j in itertools.combinations(range(len(path) + 1), 2)]
+        # print(allPaths)
+
+        for pathToUpdate in allPaths:
+            if len(pathToUpdate) > 1:
+                # print("Path to update: ", pathToUpdate)
+                rs_update = np.array([1] * 10, int)
+                prev = path[0]
+                for line in path[1:]:
+                    lineObj = self._lines[prev + line]
+                    prev = line
+                    rs_update *= lineObj.state
+                # print("rs_pudate:", rs_update)
+                index = self._route_space.index[self._route_space.Path.apply(lambda x: x == pathToUpdate)].tolist()
+                self._route_space.at[index[0], "Status"] = rs_update
+                # print(index)
+                allIndex = self._route_space.index[self._route_space.Path.apply(lambda x:  self.isSubPath(x, pathToUpdate))].tolist()
+                for index in allIndex:
+                    rs_update *= self._route_space.at[index, "Status"]
+                    self._route_space.at[index, "Status"] = rs_update
+                    # print(self._route_space.loc[index])
+                # print(allIndex)
+                # print(self._route_space)
 
 
     def propagate(self, signal_information, channel):
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
-            line.state[channel] = False
-            self._route_space.loc[(self._route_space["Channel"] == channel) & (self._route_space.Path.apply(lambda x: self.check(x, line.label[0] , line.label[1]) ) ) , ["Status"]] = False
+            line.state[channel] = 0
+            # self._route_space.loc[(self._route_space["Channel"] == channel) & (
+            #     self._route_space.Path.apply(lambda x: self.findPathUsingLine(x, line.label[0], line.label[1]))), [
+            #                           "Status"]] = False
             signal_information = start_node.propagate(signal_information, line)
         return signal_information
 
@@ -161,19 +221,21 @@ class Network:
         return paths
 
     def getFreeChannelOnPath(self, path):
-        query = self._route_space[(self._route_space["Path"].isin([path]))]
-        # print("Query:\n", query)
-        status = query[query["Status"] == True]
-        # print("status:\n", status)
-        firstChannelFree = status["Channel"].head(1).values
-        if len(firstChannelFree) > 0:
-            # print("Channel found:", firstChannelFree[0], " for path: ", path)
-            return firstChannelFree[0]
-        else:
-            # print("no free channel found for path:", path)
+        channelsStatus = self._route_space[(self._route_space["Path"].isin([path]))]["Status"].values
+        # print("Query:\n", channelsStatus)
+        i = 0
+        if len(channelsStatus) == 0:
             return None
+        for channelStatus in channelsStatus[0]:
+            if channelStatus == 1:
+                return i
+            else:
+                i += 1
+        return None
 
     def find_best_snr(self, nodeA, nodeB):
+        # todo quando scelgo il canale, devo prima leggere quali sono quelli liberi nel rs, ma poi andare a leggere
+        # i migliori nei weithed path
         paths = self.find_paths(nodeA, nodeB)
         bestPath = []
         bestSNR = 0
@@ -205,18 +267,21 @@ class Network:
         return bestPath, channel
 
     def stream(self, connections, label="latency"):
+        # todo find_best_latency e snr deve essere rimpiazzato con la lettura dal weighted_paths
         for connection in connections:
             if label == "latency":
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
             else:
                 pathAndChannel = self.find_best_snr(connection.input.label, connection.output.label)
-            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),pathAndChannel[1] )
+            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),
+                                        pathAndChannel[1])
             if len(pathAndChannel[0]) == 0:
                 print("No available path found")
                 connection.snr = 0
                 connection.latency = None
             else:
                 print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
+                self.updateRouteSpace(pathAndChannel[0])
                 connection.latency = pathSignal.latency
                 if pathSignal.noise_power != 0:
                     connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)

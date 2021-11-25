@@ -1,4 +1,5 @@
 import scipy.constants
+import numpy as np
 
 
 class Line:
@@ -7,7 +8,7 @@ class Line:
         self._length = length
         self._successive = dict()
         # True means that the line is in state free
-        self._state = [True] * 10
+        self._state = np.array([1] * 10, int)
         print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
 
     @property

@@ -31,6 +31,7 @@ if __name__ == '__main__':
     connectionsList = []
     for i in range(100):
         connectionsList.append(Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
+    # connectionsList.append( Connection.Connection( nodes["A"], nodes["B"], 1))
     net.stream(connectionsList, "latency")
     net.stream(connectionsList, "snr")
     print()
