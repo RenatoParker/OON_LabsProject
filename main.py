@@ -26,12 +26,14 @@ if __name__ == '__main__':
     # net.find_best_snr("A", "F")
     # net.find_best_latency("A", "F")
     net.initRouteSpace()
+    net.computeWeightedPaths()
     # net.checkIfPathIsFree(["A", "B"])
 
     connectionsList = []
     for i in range(100):
         connectionsList.append(Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
     # connectionsList.append( Connection.Connection( nodes["A"], nodes["B"], 1))
-    net.stream(connectionsList, "latency")
     net.stream(connectionsList, "snr")
+    net.stream(connectionsList, "latency")
+
     print()

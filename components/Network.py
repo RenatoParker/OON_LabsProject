@@ -16,7 +16,6 @@ class Network:
         self._lines = {}
         self._weighted_paths = None
         self._switching_matrix = {}  # todo: non devo metterla nel costruttore?
-
         self._route_space = pd.DataFrame(None, columns=["Path", "Status"])
 
         for node in self._nodes.values():
@@ -71,25 +70,23 @@ class Network:
         print(self._route_space)
 
     def computeWeightedPaths(self):
-        totalPaths = []
-        for startingNode in self._nodes.values:
-            for endingNode in self._nodes.values:
-                paths = self.find_paths(startingNode, endingNode)
-                for path in paths:
-                    formattedPath = ""
-                    for node in path:
-                        formattedPath = formattedPath + node + " -> "
-                    formattedPath = formattedPath[:-3]
+        data = []
+        allPaths = []
+        for startingNode in self._nodes:
+            for endNode in self._nodes:
+                if startingNode != endNode:
+                    allPaths = self.find_paths(startingNode, endNode)
+                for path in allPaths:
                     signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
-
                     if signalPropagated.noise_power > 0:
                         noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
                     else:
                         noise_ratio = 0
-                    totalPaths.append(
-                        [formattedPath, signalPropagated.latency, signalPropagated.noise_power, noise_ratio])
+                    data.append(
+                        [path, signalPropagated.latency, signalPropagated.noise_power, noise_ratio])
 
-        self._weighted_paths = pd.DataFrame(totalPaths, columns=["Path", "latency", "signal_noise", "noise_ratio"])
+        self._weighted_paths = pd.DataFrame(data, columns=["Path", "latency", "signal_noise", "noise_ratio"])
+        print("Weightpath")
         print(self._weighted_paths)
 
     # each node must have a dict of lines and each line must have a dictionary of a node
@@ -122,7 +119,7 @@ class Network:
                 return isSubPath
             index = pathExt.index(pathInt[0])
             for i in pathInt:
-                if index > (len(pathExt) -1 ):
+                if index > (len(pathExt) - 1):
                     return isSubPath
                 if pathExt[index] == i:
                     index += 1
@@ -131,7 +128,6 @@ class Network:
             isSubPath = True
             return isSubPath
 
-
     def updateRouteSpace(self, path):
         # print("path to be update", path)
 
@@ -139,31 +135,27 @@ class Network:
         # se le mie linee
         # se ho ABCD devo aggiornare AB , BC, CD , ABC , BCD  , ABCD
 
+        # todo chiedere dove devo escludere primo e ultimo
+
         # ricavo tutti i path per i quali devo fare un aggiornamento
         allPaths = [path[i:j] for i, j in itertools.combinations(range(len(path) + 1), 2)]
         # print(allPaths)
 
         for pathToUpdate in allPaths:
             if len(pathToUpdate) > 1:
-                # print("Path to update: ", pathToUpdate)
                 rs_update = np.array([1] * 10, int)
                 prev = path[0]
                 for line in path[1:]:
                     lineObj = self._lines[prev + line]
                     prev = line
                     rs_update *= lineObj.state
-                # print("rs_pudate:", rs_update)
                 index = self._route_space.index[self._route_space.Path.apply(lambda x: x == pathToUpdate)].tolist()
                 self._route_space.at[index[0], "Status"] = rs_update
-                # print(index)
-                allIndex = self._route_space.index[self._route_space.Path.apply(lambda x:  self.isSubPath(x, pathToUpdate))].tolist()
+                allIndex = self._route_space.index[
+                    self._route_space.Path.apply(lambda x: self.isSubPath(x, pathToUpdate))].tolist()
                 for index in allIndex:
                     rs_update *= self._route_space.at[index, "Status"]
                     self._route_space.at[index, "Status"] = rs_update
-                    # print(self._route_space.loc[index])
-                # print(allIndex)
-                # print(self._route_space)
-
 
     def propagate(self, signal_information, channel):
         while len(signal_information.path) > 1:
@@ -220,51 +212,64 @@ class Network:
                     paths.append(newpath)
         return paths
 
-    def getFreeChannelOnPath(self, path):
+    def getFreeChannelsOnPath(self, path):
         channelsStatus = self._route_space[(self._route_space["Path"].isin([path]))]["Status"].values
         # print("Query:\n", channelsStatus)
-        i = 0
         if len(channelsStatus) == 0:
             return None
-        for channelStatus in channelsStatus[0]:
-            if channelStatus == 1:
-                return i
-            else:
-                i += 1
-        return None
+        else:
+            # print(path, channelsStatus)
+            return channelsStatus[0]
 
     def find_best_snr(self, nodeA, nodeB):
-        # todo quando scelgo il canale, devo prima leggere quali sono quelli liberi nel rs, ma poi andare a leggere
-        # i migliori nei weithed path
+        if nodeA == nodeB:
+            return None
         paths = self.find_paths(nodeA, nodeB)
-        bestPath = []
-        bestSNR = 0
-        channel = None
+        data = []
+        weightedPaths = pd.DataFrame(data, columns=["Path", "latency", "signal_noise", "noise_ratio"])
         for path in paths:
-            pathSignal = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
-            if pathSignal.noise_power != 0:
-                snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
-                freeChannel = self.getFreeChannelOnPath(path)
-                if (snr > bestSNR) & (freeChannel is not None):
-                    bestSNR = snr
-                    bestPath = path
-                    channel = freeChannel
-        return bestPath, channel
+            subData = self._weighted_paths.loc[self._weighted_paths.Path.apply(lambda x: x == path)]
+            weightedPaths = pd.concat([weightedPaths, subData])
+        while not weightedPaths.empty:
+            max = weightedPaths.loc[weightedPaths["noise_ratio"] == weightedPaths["noise_ratio"].max()]
+            pathOfMax = max.iloc[0].Path
+            freeChannels = self.getFreeChannelsOnPath(pathOfMax)
+
+            if freeChannels is None:
+                print("ERROR")
+            else:
+                # devo cercare il primo libero
+                for index, i in enumerate(freeChannels):
+                    # print(i, index)
+                    if i == 1:
+                        return pathOfMax, index
+               # se non lo trvo devo passare al prossimo path
+            weightedPaths = weightedPaths.drop([weightedPaths["noise_ratio"].idxmax()])
 
     def find_best_latency(self, nodeA, nodeB):
+        if nodeA == nodeB:
+            return None
         paths = self.find_paths(nodeA, nodeB)
-        bestLatency = float("inf")
-        bestPath = []
-        channel = None
+        data = []
+        weightedPaths = pd.DataFrame(data, columns=["Path", "latency", "signal_noise", "noise_ratio"])
         for path in paths:
-            pathSignal = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
-            # snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
-            freeChannel = self.getFreeChannelOnPath(path)
-            if (pathSignal.latency < bestLatency) & (freeChannel is not None):
-                bestLatency = pathSignal.latency
-                bestPath = path
-                channel = freeChannel
-        return bestPath, channel
+            subData = self._weighted_paths.loc[self._weighted_paths.Path.apply(lambda x: x == path)]
+            weightedPaths = pd.concat([weightedPaths, subData])
+        while not weightedPaths.empty:
+            max = weightedPaths.loc[weightedPaths["latency"] == weightedPaths["latency"].min()]
+            pathOfMax = max.iloc[0].Path
+            freeChannels = self.getFreeChannelsOnPath(pathOfMax)
+
+            if freeChannels is None:
+                print("ERROR")
+            else:
+                # devo cercare il primo libero
+                for index, i in enumerate(freeChannels):
+                    # print(i, index)
+                    if i == 1:
+                        return pathOfMax, index
+            # se non lo trvo devo passare al prossimo path
+            weightedPaths = weightedPaths.drop([weightedPaths["latency"].idxmin()])
 
     def stream(self, connections, label="latency"):
         # todo find_best_latency e snr deve essere rimpiazzato con la lettura dal weighted_paths
@@ -273,17 +278,20 @@ class Network:
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
             else:
                 pathAndChannel = self.find_best_snr(connection.input.label, connection.output.label)
-            pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),
-                                        pathAndChannel[1])
-            if len(pathAndChannel[0]) == 0:
-                print("No available path found")
-                connection.snr = 0
-                connection.latency = None
+            if pathAndChannel is None:
+                print("No free channel found for connection:", connection.input.label, connection.output.label)
             else:
-                print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
-                self.updateRouteSpace(pathAndChannel[0])
-                connection.latency = pathSignal.latency
-                if pathSignal.noise_power != 0:
-                    connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
-                else:
+                if len(pathAndChannel[0]) == 0:
+                    print("No available path found")
                     connection.snr = 0
+                    connection.latency = None
+                else:
+                    pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),
+                                                pathAndChannel[1])
+                    print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
+                    self.updateRouteSpace(pathAndChannel[0])
+                    connection.latency = pathSignal.latency
+                    if pathSignal.noise_power != 0:
+                        connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
+                    else:
+                        connection.snr = 0
