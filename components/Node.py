@@ -4,11 +4,12 @@ class Node:
         self._position = data["position"]
         self._connected_node = data["connected_nodes"]
         self._successive = dict()
-        self._switching_matrix = None
+        self._switching_matrix = data["switching_matrix"]
         print("New node created:", "\t",
               "Label: ", self._label, "\t",
               "Position:", self._position, "\t",
-              "Connected Node: ", self._connected_node)
+              "Connected Node: ", self._connected_node, "\t",
+              "Switching Matrix:", self._switching_matrix)
 
     @property
     def label(self):
@@ -41,6 +42,14 @@ class Node:
     @successive.setter
     def successive(self, successive):
         self._successive = successive
+
+    @property
+    def switching_matrix(self):
+        return self.switching_matrix
+
+    @switching_matrix.setter
+    def switching_matrix(self, switching_matrix):
+        self.switching_matrix = switching_matrix
 
     def propagate(self, signal_information,line):
         if len(signal_information.path) > 1:

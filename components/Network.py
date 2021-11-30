@@ -148,7 +148,7 @@ class Network:
                 for line in path[1:]:
                     lineObj = self._lines[prev + line]
                     prev = line
-                    rs_update *= lineObj.state
+                    rs_update *= lineObj.state # todo credo proprio sia sbagliata
                 index = self._route_space.index[self._route_space.Path.apply(lambda x: x == pathToUpdate)].tolist()
                 self._route_space.at[index[0], "Status"] = rs_update
                 allIndex = self._route_space.index[
@@ -243,7 +243,7 @@ class Network:
                     # print(i, index)
                     if i == 1:
                         return pathOfMax, index
-               # se non lo trvo devo passare al prossimo path
+               # se non lo trovo devo passare al prossimo path
             weightedPaths = weightedPaths.drop([weightedPaths["noise_ratio"].idxmax()])
 
     def find_best_latency(self, nodeA, nodeB):
@@ -272,7 +272,6 @@ class Network:
             weightedPaths = weightedPaths.drop([weightedPaths["latency"].idxmin()])
 
     def stream(self, connections, label="latency"):
-        # todo find_best_latency e snr deve essere rimpiazzato con la lettura dal weighted_paths
         for connection in connections:
             if label == "latency":
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
