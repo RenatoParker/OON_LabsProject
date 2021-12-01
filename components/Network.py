@@ -92,14 +92,7 @@ class Network:
     # each node must have a dict of lines and each line must have a dictionary of a node
     def connect(self):
         for nodeLabel, node in self._nodes.items():
-            internalDict = {}
-            for nodeLabelInternal, nodeInternal in self._nodes.items():
-                if nodeLabel == nodeLabelInternal:
-                    internalDict[nodeLabelInternal] = np.array([0] * 10, int)
-                else:
-                    internalDict[nodeLabelInternal] = np.array([1] * 10, int)
-            print(internalDict)
-            self._switching_matrix[nodeLabel] = internalDict
+            self._switching_matrix[nodeLabel] = node.switching_matrix
         print(self._switching_matrix)
 
     def findPathUsingLine(self, pathList, A, B):
@@ -112,7 +105,7 @@ class Network:
 
     def isSubPath(self, pathExt, pathInt):
         isSubPath = False
-        if len(pathExt) <= len(pathInt):
+        if len(pathExt) < len(pathInt):
             return isSubPath
         else:
             if pathInt[0] not in pathExt:
@@ -128,34 +121,43 @@ class Network:
             isSubPath = True
             return isSubPath
 
+    def calculate_bit_rate(self, path, strategy):
+        return
+
     def updateRouteSpace(self, path):
-        # print("path to be update", path)
-
-        # devo fare un for per ogni possibile path che si generara un quella linea """
-        # se le mie linee
-        # se ho ABCD devo aggiornare AB , BC, CD , ABC , BCD  , ABCD
-
-        # todo chiedere dove devo escludere primo e ultimo
-
-        # ricavo tutti i path per i quali devo fare un aggiornamento
-        allPaths = [path[i:j] for i, j in itertools.combinations(range(len(path) + 1), 2)]
-        # print(allPaths)
-
-        for pathToUpdate in allPaths:
-            if len(pathToUpdate) > 1:
-                rs_update = np.array([1] * 10, int)
-                prev = path[0]
-                for line in path[1:]:
-                    lineObj = self._lines[prev + line]
-                    prev = line
-                    rs_update *= lineObj.state # todo credo proprio sia sbagliata
-                index = self._route_space.index[self._route_space.Path.apply(lambda x: x == pathToUpdate)].tolist()
-                self._route_space.at[index[0], "Status"] = rs_update
-                allIndex = self._route_space.index[
-                    self._route_space.Path.apply(lambda x: self.isSubPath(x, pathToUpdate))].tolist()
-                for index in allIndex:
-                    rs_update *= self._route_space.at[index, "Status"]
-                    self._route_space.at[index, "Status"] = rs_update
+        prev = path[0]
+        for next in path[1:]:
+            line = [prev, next]
+            prev = next
+            allIndex = self._route_space.index[
+                self._route_space.Path.apply(lambda x: self.isSubPath(x, line))].tolist()
+            # print("INDEX:", allIndex)
+        for index in allIndex:
+            # print(index)
+            path = self._route_space.at[index, "Path"]
+            # print(path)
+            start = path[0]
+            rs_update = np.array([1] * 10, int)
+            for i in range(len(path) -1):
+                next = path[i+1]
+                lineObj = self._lines[ start + next]
+                # print("Label linea: ", lineObj.label)
+                if (i != 0) & (i!=len(path)):
+                    matrix = self._switching_matrix[start][path[i-1]][next]
+                else:
+                    matrix = np.array([1] * 10, int)
+                # print(path[i-1], start, next)
+                #todo questa matrice a volte è tutti zero anche quando non dovrebbe esserlo
+                # print("matrix", matrix)
+                # print("matrice 1:" , self._switching_matrix[start])
+                # print("matrice 2:", self._switching_matrix[start][path[i-1]])
+                # print("line status:", lineObj.state)
+                start = next
+                rs_update *= matrix * lineObj.state
+            # print("RS UPDATE")
+            # print(rs_update)
+            self._route_space.at[index, "Status"] = rs_update
+        # print(self._route_space)
 
     def propagate(self, signal_information, channel):
         while len(signal_information.path) > 1:

@@ -1,10 +1,11 @@
 class Node:
-    def __init__(self, data):
+    def __init__(self, data, transceiver="fixed-rate"):
         self._label = data["label"]
         self._position = data["position"]
         self._connected_node = data["connected_nodes"]
         self._successive = dict()
         self._switching_matrix = data["switching_matrix"]
+        self._transceiver = transceiver
         print("New node created:", "\t",
               "Label: ", self._label, "\t",
               "Position:", self._position, "\t",
@@ -45,13 +46,13 @@ class Node:
 
     @property
     def switching_matrix(self):
-        return self.switching_matrix
+        return self._switching_matrix
 
     @switching_matrix.setter
     def switching_matrix(self, switching_matrix):
-        self.switching_matrix = switching_matrix
+        self._switching_matrix = switching_matrix
 
-    def propagate(self, signal_information,line):
+    def propagate(self, signal_information, line):
         if len(signal_information.path) > 1:
             signal_information.path.pop(0)
             latency = line.latency_generation()
@@ -60,4 +61,3 @@ class Node:
             signal_information.increment_noise(noise)
             # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
             return signal_information
-

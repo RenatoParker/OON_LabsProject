@@ -38,7 +38,7 @@ if __name__ == '__main__':
             new_node = Node.Node(nodeData)
             nodes_not_full[nodeKey] = new_node
 
-    net = Network.Network(nodes_not_full)
+    net = Network.Network(nodes_full)
     net.connect()
     # net.draw()
     # net.find_best_snr("A", "F")
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     connectionsList = []
     for i in range(100):
         connectionsList.append(Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
-    # connectionsList.append( Connection.Connection( nodes["A"], nodes["B"], 1))
+    # connectionsList.append( Connection.Connection( nodes_full["A"], nodes_full["B"], 1))
     net.stream(connectionsList, "snr")
-    # net.stream(connectionsList, "latency")
+    net.stream(connectionsList, "latency")
 
