@@ -52,7 +52,7 @@ class Node:
     def switching_matrix(self, switching_matrix):
         self._switching_matrix = switching_matrix
 
-    def propagate(self, signal_information, line):
+    def propagate(self, signal_information, line, channel, totalPath):
         if len(signal_information.path) > 1:
             signal_information.path.pop(0)
             latency = line.latency_generation()
@@ -60,4 +60,16 @@ class Node:
             signal_information.increment_latency(latency)
             signal_information.increment_noise(noise)
             # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
+            # modifica lab7
+            if (totalPath is not None) & (channel is not None):
+                index = totalPath.index(self._label)
+                if (index != 0) & (index != len(totalPath)):
+                    if (channel==0):
+                        self._switching_matrix[totalPath[index-1]][totalPath[len(totalPath)-1]][channel+1] = 0
+                    else:
+                        if channel == 9:
+                            self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0
+                        else:
+                            self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0
+                            self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0
             return signal_information

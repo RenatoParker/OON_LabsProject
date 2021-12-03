@@ -1,13 +1,17 @@
-import json
 import pandas as pd
 
-from components import Node
 from components import Line
 from components import SignalInformation
 import math
 import matplotlib.pyplot as plt
 import numpy as np
-import itertools
+from enum import Enum
+
+
+class Color(Enum):
+    RED = 1
+    GREEN = 2
+    BLUE = 3
 
 
 class Network:
@@ -131,50 +135,41 @@ class Network:
             prev = next
             allIndex = self._route_space.index[
                 self._route_space.Path.apply(lambda x: self.isSubPath(x, line))].tolist()
-            # print("INDEX:", allIndex)
         for index in allIndex:
-            # print(index)
             path = self._route_space.at[index, "Path"]
-            # print(path)
             start = path[0]
             rs_update = np.array([1] * 10, int)
             for i in range(len(path) -1):
                 next = path[i+1]
                 lineObj = self._lines[ start + next]
-                # print("Label linea: ", lineObj.label)
                 if (i != 0) & (i!=len(path)):
-                    matrix = self._switching_matrix[start][path[i-1]][next]
+                    # lab 7: sto modificando la matrice che viene usata da quella del network a quella del nodo
+                    # matrix = self._switching_matrix[start][path[i-1]][next]
+                    matrix = self._nodes[start].switching_matrix[path[i-1]][next]
                 else:
                     matrix = np.array([1] * 10, int)
-                # print(path[i-1], start, next)
-                #todo questa matrice a volte è tutti zero anche quando non dovrebbe esserlo
-                # print("matrix", matrix)
-                # print("matrice 1:" , self._switching_matrix[start])
-                # print("matrice 2:", self._switching_matrix[start][path[i-1]])
-                # print("line status:", lineObj.state)
                 start = next
                 rs_update *= matrix * lineObj.state
-            # print("RS UPDATE")
-            # print(rs_update)
             self._route_space.at[index, "Status"] = rs_update
         # print(self._route_space)
 
     def propagate(self, signal_information, channel):
+        totalPath = signal_information.path.copy()
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
             line.state[channel] = 0
-            # self._route_space.loc[(self._route_space["Channel"] == channel) & (
-            #     self._route_space.Path.apply(lambda x: self.findPathUsingLine(x, line.label[0], line.label[1]))), [
-            #                           "Status"]] = False
-            signal_information = start_node.propagate(signal_information, line)
+            signal_information = start_node.propagate(signal_information, line, channel,totalPath)
+        #restore switchmatrix
+        for node in totalPath:
+            self._nodes[node].switching_matrix = self._switching_matrix[node]
         return signal_information
 
     def probe(self, signal_information):
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
-            signal_information = start_node.propagate(signal_information, line)
+            signal_information = start_node.propagate(signal_information, line, None, None)
         return signal_information
 
     def draw(self):
