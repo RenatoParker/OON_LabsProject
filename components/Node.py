@@ -64,7 +64,7 @@ class Node:
             if (totalPath is not None) & (channel is not None):
                 index = totalPath.index(self._label)
                 if (index != 0) & (index != len(totalPath)):
-                    if (channel==0):
+                    if channel==0:
                         self._switching_matrix[totalPath[index-1]][totalPath[len(totalPath)-1]][channel+1] = 0
                     else:
                         if channel == 9:
