@@ -126,7 +126,8 @@ class Network:
             return isSubPath
 
     def calculate_bit_rate(self, path, strategy):
-        return
+        #todo
+        return 10
 
     def updateRouteSpace(self, path):
         prev = path[0]
@@ -160,7 +161,6 @@ class Network:
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
             line.state[channel] = 0
             signal_information = start_node.propagate(signal_information, line, channel,totalPath)
-        #restore switchmatrix
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
         return signal_information
@@ -282,6 +282,12 @@ class Network:
                     connection.snr = 0
                     connection.latency = None
                 else:
+                    bit_rate = self.calculate_bit_rate(pathAndChannel[0], self._nodes[pathAndChannel[0][0]].transceiver)
+
+                    if bit_rate < 1:
+                        #todo
+                        return
+                    connection.bit_rate = bit_rate
                     pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),
                                                 pathAndChannel[1])
                     print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])

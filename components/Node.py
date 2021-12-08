@@ -1,15 +1,19 @@
 class Node:
-    def __init__(self, data, transceiver="fixed-rate"):
+    def __init__(self, data):
         self._label = data["label"]
         self._position = data["position"]
         self._connected_node = data["connected_nodes"]
         self._successive = dict()
         self._switching_matrix = data["switching_matrix"]
-        self._transceiver = transceiver
+        if "transceiver" in data:
+            self._transceiver = data["transceiver"]
+        else:
+            self._transceiver = "fixed-rate"
         print("New node created:", "\t",
               "Label: ", self._label, "\t",
               "Position:", self._position, "\t",
               "Connected Node: ", self._connected_node, "\t",
+              "Transceiver: ", self._transceiver,"\t",
               "Switching Matrix:", self._switching_matrix)
 
     @property
@@ -51,6 +55,14 @@ class Node:
     @switching_matrix.setter
     def switching_matrix(self, switching_matrix):
         self._switching_matrix = switching_matrix
+
+    @property
+    def transceiver(self):
+        return self._transceiver
+
+    @transceiver.setter
+    def transceiver(self, transceiver):
+        self._transceiver = transceiver
 
     def propagate(self, signal_information, line, channel, totalPath):
         if len(signal_information.path) > 1:

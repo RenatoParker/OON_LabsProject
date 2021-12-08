@@ -20,7 +20,7 @@ if __name__ == '__main__':
     #         nodes[nodeKey] = new_node
 
     root = Path(__file__).parent
-    with open("Resource/nodes_full.json", "r") as read_file:
+    with open("Resource/nodes_full_shannon.json", "r") as read_file:
         nodesJson = json.load(read_file)
         nodes_full = {}
         for nodeKey, nodeValue in nodesJson.items():

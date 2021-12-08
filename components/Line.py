@@ -1,5 +1,6 @@
 import scipy.constants
 import numpy as np
+import math
 
 
 class Line:
@@ -9,7 +10,17 @@ class Line:
         self._successive = dict()
         # True means that the line is in state free
         self._state = np.array([1] * 10, int)
+        self._n_amplifiers = int(length // (80 * 1000))
+        self._gain = 16
+        self._noise_figure = 3
         print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
+
+        self._constant = {
+            "aDb": 0.2,
+            "b2": 2.13e-26,  # ps2/km;
+            "gamma": 1.27,  # (Wm)−1;
+            "a": 0.2 / (10 * (math.log(scipy.constants.e, 10)))
+        }
 
     @property
     def label(self):
@@ -43,6 +54,30 @@ class Line:
     def state(self, state):
         self._state = state
 
+    @property
+    def n_amplifiers(self):
+        return self._n_amplifiers
+
+    @n_amplifiers.setter
+    def n_amplifiers(self, n_amplifiers):
+        self._n_amplifiers = n_amplifiers
+
+    @property
+    def gain(self):
+        return self._gain
+
+    @gain.setter
+    def gain(self, gain):
+        self._gain = gain
+
+    @property
+    def noise_figure(self):
+        return self._noise_figure
+
+    @noise_figure.setter
+    def noise_figure(self, noise_figure):
+        self._noise_figure = noise_figure
+
     def latency_generation(self):
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
@@ -57,3 +92,7 @@ class Line:
         signal_information.increment_noise(self.noise_generation())
 
         return signal_information
+
+    def ase_generation(self):
+        return self._n_amplifiers * (scipy.constants.Planck * (193.414 * 1e12) * (
+                    12.5 * 1e9) * self._n_amplifiers * self._noise_figure * (self._gain - 1))
