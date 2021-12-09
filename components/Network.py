@@ -5,7 +5,16 @@ from components import SignalInformation
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.special import erfcinv
 from enum import Enum
+
+
+# todo """
+# : le matrici che hanno i path mi danno un tot di problemi perchè sto unsando delle liste
+# la cosa corretta da fare è non passare i path come liste, ma fargli una pulita e passarle come stringhe.
+# In realtà esiste un metrodo molto più ottimizzato: dovrei fare il traslato di quella matrice: i path dovrebbero
+# essere le colonne di quella matrice (una colonna per ogni path) e nelle colonne metto i valori relativi a tale path
+# questo di fatto è il modo più veloce per lavorare con gli hash su quella matrice
 
 
 class Color(Enum):
@@ -126,8 +135,31 @@ class Network:
             return isSubPath
 
     def calculate_bit_rate(self, path, strategy):
-        #todo
-        return 10
+        # todo
+
+        index = self._weighted_paths.index[
+            self._weighted_paths.Path.apply(lambda x: x == path)].tolist()
+
+        GSNR = self._weighted_paths.at[index[0], "signal_noise"]
+        if strategy == "fixed-rate":
+            if GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+                return 100 * 10e9
+            else:
+                return 0
+        if strategy == "flex-rate":
+            if GSNR < 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+                return 0
+            if (GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)) & (
+                    GSNR < (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)):
+                return 100 * 10e9
+            if (GSNR >= (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)) & (
+                    GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)):
+                return 200 * 10e9
+            if GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+                return 400 * 10e9
+
+        if strategy == "shannon":
+            return 2 * 32 * 10e9 * math.log((1 + GSNR * (32 * 10e9 / 12.5 * 10e9)), 2) * 10e9
 
     def updateRouteSpace(self, path):
         prev = path[0]
@@ -140,13 +172,13 @@ class Network:
             path = self._route_space.at[index, "Path"]
             start = path[0]
             rs_update = np.array([1] * 10, int)
-            for i in range(len(path) -1):
-                next = path[i+1]
-                lineObj = self._lines[ start + next]
-                if (i != 0) & (i!=len(path)):
+            for i in range(len(path) - 1):
+                next = path[i + 1]
+                lineObj = self._lines[start + next]
+                if (i != 0) & (i != len(path)):
                     # lab 7: sto modificando la matrice che viene usata da quella del network a quella del nodo
                     # matrix = self._switching_matrix[start][path[i-1]][next]
-                    matrix = self._nodes[start].switching_matrix[path[i-1]][next]
+                    matrix = self._nodes[start].switching_matrix[path[i - 1]][next]
                 else:
                     matrix = np.array([1] * 10, int)
                 start = next
@@ -160,7 +192,7 @@ class Network:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
             line.state[channel] = 0
-            signal_information = start_node.propagate(signal_information, line, channel,totalPath)
+            signal_information = start_node.propagate(signal_information, line, channel, totalPath)
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
         return signal_information
@@ -240,7 +272,7 @@ class Network:
                     # print(i, index)
                     if i == 1:
                         return pathOfMax, index
-               # se non lo trovo devo passare al prossimo path
+            # se non lo trovo devo passare al prossimo path
             weightedPaths = weightedPaths.drop([weightedPaths["noise_ratio"].idxmax()])
 
     def find_best_latency(self, nodeA, nodeB):
@@ -283,9 +315,8 @@ class Network:
                     connection.latency = None
                 else:
                     bit_rate = self.calculate_bit_rate(pathAndChannel[0], self._nodes[pathAndChannel[0][0]].transceiver)
-
-                    if bit_rate < 1:
-                        #todo
+                    if bit_rate < 0:
+                        print("this path do not support minimum BitRate")
                         return
                     connection.bit_rate = bit_rate
                     pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),

@@ -1,7 +1,7 @@
 import scipy.constants
 import numpy as np
 import math
-
+#todo non importare tutta libreria ma solo le funzioni/costanti che ti servono
 
 class Line:
     def __init__(self, label, length):
@@ -96,3 +96,7 @@ class Line:
     def ase_generation(self):
         return self._n_amplifiers * (scipy.constants.Planck * (193.414 * 1e12) * (
                     12.5 * 1e9) * self._n_amplifiers * self._noise_figure * (self._gain - 1))
+
+    def nli_generation(self):
+        #todo 7.5 capisci la formula
+        return
