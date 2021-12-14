@@ -17,9 +17,9 @@ class Line:
 
         self._constant = {
             "aDb": 0.2,
-            "b2": 2.13e-26,  # ps2/km;
-            "gamma": 1.27,  # (Wm)−1;
-            "a": 0.2 / (10 * (math.log(scipy.constants.e, 10)))
+            "B2": 2.13e-26,  # ps2/km;
+            "GAMMA": 1.27,  # (Wm)−1;
+            "A": 0.2 / (10 * (math.log(scipy.constants.e, 10)))
         }
 
     @property
@@ -97,6 +97,7 @@ class Line:
         return self._n_amplifiers * (scipy.constants.Planck * (193.414 * 1e12) * (
                     12.5 * 1e9) * self._n_amplifiers * self._noise_figure * (self._gain - 1))
 
-    def nli_generation(self):
-        #todo 7.5 capisci la formula
-        return
+    def nli_generation(self, signal_power, channel):
+        # RS = 32 GHz
+        # todo controlla questa funzione, aggiusta le costanti e definisci variabili invece di mettere i numeri
+        return signal_power * channel**3 * ((16/(27*scipy.constants.pi)) * math.log((scipy.constants.pi**2) * self._constant["B2"] * 32e18 * channel**(2*32e9/50e9)*2*self._constant["A"]) * self._constant["GAMMA"]/(4*self._constant["A"]*self._constant["B2"]*32e9)) * self._n_amplifiers
