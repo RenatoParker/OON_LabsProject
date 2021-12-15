@@ -13,7 +13,7 @@ class Node:
               "Label: ", self._label, "\t",
               "Position:", self._position, "\t",
               "Connected Node: ", self._connected_node, "\t",
-              "Transceiver: ", self._transceiver,"\t",
+              "Transceiver: ", self._transceiver, "\t",
               "Switching Matrix:", self._switching_matrix)
 
     @property
@@ -68,16 +68,16 @@ class Node:
         if len(signal_information.path) > 1:
             signal_information.path.pop(0)
             latency = line.latency_generation()
-            noise = line.noise_generation(signal_information.signal_power)
+            noise = line.noise_generation(signal_information.signal_power, channel)
             signal_information.increment_latency(latency)
             signal_information.increment_noise(noise)
             # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
-            # modifica lab7
+            # modification by lab7
             if (totalPath is not None) & (channel is not None):
                 index = totalPath.index(self._label)
                 if (index != 0) & (index != len(totalPath)):
-                    if channel==0:
-                        self._switching_matrix[totalPath[index-1]][totalPath[len(totalPath)-1]][channel+1] = 0
+                    if channel == 0:
+                        self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0
                     else:
                         if channel == 9:
                             self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0

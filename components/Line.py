@@ -1,7 +1,9 @@
 import scipy.constants
 import numpy as np
 import math
-#todo non importare tutta libreria ma solo le funzioni/costanti che ti servono
+
+
+# todo non importare tutta libreria ma solo le funzioni/costanti che ti servono
 
 class Line:
     def __init__(self, label, length):
@@ -81,8 +83,9 @@ class Line:
     def latency_generation(self):
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
-    def noise_generation(self, signal_power):
-        return 1e-9 * signal_power * self._length
+    def noise_generation(self, signal_power, channel):
+        print(channel)
+        return (self.ase_generation() + self.nli_generation(signal_power, channel))
 
     # Define a propagate method that updates the signal information modifying its
     # noise power and its latency and call the successive element propagate method,
@@ -95,9 +98,19 @@ class Line:
 
     def ase_generation(self):
         return self._n_amplifiers * (scipy.constants.Planck * (193.414 * 1e12) * (
-                    12.5 * 1e9) * self._n_amplifiers * self._noise_figure * (self._gain - 1))
+                12.5 * 1e9) * self._n_amplifiers * self._noise_figure * (self._gain - 1))
 
     def nli_generation(self, signal_power, channel):
         # RS = 32 GHz
         # todo controlla questa funzione, aggiusta le costanti e definisci variabili invece di mettere i numeri
-        return signal_power * channel**3 * ((16/(27*scipy.constants.pi)) * math.log((scipy.constants.pi**2) * self._constant["B2"] * 32e18 * channel**(2*32e9/50e9)*2*self._constant["A"]) * self._constant["GAMMA"]/(4*self._constant["A"]*self._constant["B2"]*32e9)) * self._n_amplifiers
+        return signal_power * channel ** 3 * self.etaNLI(channel) * self._n_amplifiers
+
+    def etaNLI(self, channel):
+        return ((16 / (27 * scipy.constants.pi)) * math.log(
+            (scipy.constants.pi ** 2) * self._constant["B2"] * 32e18 * channel ** (2 * 32e9 / 50e9) * 2 *
+            self._constant["A"]) * self._constant["GAMMA"] / (4 * self._constant["A"] * self._constant["B2"] * 32e9))
+
+    def optimized_launch_power(self, channel, signal_power):
+        #todo slide 32 - check
+        # todo devo calcolare il gsnr di tutti e prendere il max
+        return (2 / 3) * (1 / (2 * self.etaNLI(channel) * self._constant["B2"] * ( 12.5 * 1e9 * 193.414 * 1e12 * signal_power) ** 2)) ** (1 / 3)
