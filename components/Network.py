@@ -1,4 +1,5 @@
 import pandas as pd
+import random
 
 from components import Line
 from components import SignalInformation
@@ -7,21 +8,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import erfcinv
 from enum import Enum
+from components import Connection
 
 
 # todo """
-# : le matrici che hanno i path mi danno un tot di problemi perchè sto unsando delle liste
-# la cosa corretta da fare è non passare i path come liste, ma fargli una pulita e passarle come stringhe.
-# In realtà esiste un metrodo molto più ottimizzato: dovrei fare il traslato di quella matrice: i path dovrebbero
-# essere le colonne di quella matrice (una colonna per ogni path) e nelle colonne metto i valori relativi a tale path
-# questo di fatto è il modo più veloce per lavorare con gli hash su quella matrice
-
-
-class Color(Enum):
-    RED = 1
-    GREEN = 2
-    BLUE = 3
-
+#  le matrici che hanno i path mi danno un tot di problemi perchè sto unsando delle liste
+#  la cosa corretta da fare è non passare i path come liste, ma fargli una pulita e passarle come stringhe.
+#  In realtà esiste un metrodo molto più ottimizzato: dovrei fare il traslato di quella matrice: i path dovrebbero
+#  essere le colonne di quella matrice (una colonna per ogni path) e nelle colonne metto i valori relativi a tale path
+#  questo di fatto è il modo più veloce per lavorare con gli hash su quella matrice """
 
 class Network:
     def __init__(self, nodes):
@@ -90,9 +85,10 @@ class Network:
                 if startingNode != endNode:
                     allPaths = self.find_paths(startingNode, endNode)
                 for path in allPaths:
-                    signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
+                    signalPropagated = self.probe(SignalInformation.SignalInformation(10, path.copy()))
                     if signalPropagated.noise_power > 0:
-                        noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
+                        print("ASD",signalPropagated.noise_power)
+                        noise_ratio = 10 * math.log(10 / signalPropagated.noise_power, 10)
                     else:
                         noise_ratio = 0
                     data.append(
@@ -135,7 +131,8 @@ class Network:
             return isSubPath
 
     def calculate_bit_rate(self, path, strategy):
-        # todo
+        # todo Modify the method calculate bit rate of the class Network to have as input a light-path instead of the
+        #  path in order to retrieve the specific symbol rate Rs.
 
         index = self._weighted_paths.index[
             self._weighted_paths.Path.apply(lambda x: x == path)].tolist()
@@ -297,7 +294,7 @@ class Network:
                     # print(i, index)
                     if i == 1:
                         return pathOfMax, index
-            # se non lo trvo devo passare al prossimo path
+            # se non lo trovo devo passare al prossimo path
             weightedPaths = weightedPaths.drop([weightedPaths["latency"].idxmin()])
 
     def stream(self, connections, label="latency"):
@@ -328,3 +325,16 @@ class Network:
                         connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
                     else:
                         connection.snr = 0
+
+    def createAndManageConnections(self, trafficMatrix, label):
+        connectionsList = []
+        print(chr(65 + random.randint(0, len(trafficMatrix[0]))))
+        print(self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0])))])
+        connectionsList.append(
+            Connection.Connection(
+                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0])))],
+                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0])))],
+                1))
+
+        self.stream(connectionsList, label)
+        return 0

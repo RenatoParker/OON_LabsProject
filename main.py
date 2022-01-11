@@ -7,7 +7,6 @@ from pathlib import Path
 
 import json
 
-
 if __name__ == '__main__':
     # root = Path(__file__).parent
     # with open("Resource/nodes.json", "r") as read_file:
@@ -47,10 +46,24 @@ if __name__ == '__main__':
     net.computeWeightedPaths()
     # net.checkIfPathIsFree(["A", "B"])
 
-    connectionsList = []
-    for i in range(100):
-        connectionsList.append(Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
-    # connectionsList.append( Connection.Connection( nodes_full["A"], nodes_full["F"], 1))
-    net.stream(connectionsList, "snr")
-    net.stream(connectionsList, "latency")
+    # connectionsList = []
+    # for i in range(100):
+    #     connectionsList.append(
+    #         Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
+    # # connectionsList.append( Connection.Connection( nodes_full["A"], nodes_full["F"], 1))
+    # net.stream(connectionsList, "snr")
+    # net.stream(connectionsList, "latency")
 
+    traffic_matrix = []
+
+    for indexRow, valueRow in enumerate(nodes_not_full):
+        row = []
+        for indexCol, valueCol in enumerate(nodes_not_full):
+            if indexRow == indexCol:
+                row.append(0)
+            else:
+                row.append((indexCol + 1) * 100)
+        traffic_matrix.append(row)
+
+    print(traffic_matrix)
+    net.createAndManageConnections(traffic_matrix, "latency")

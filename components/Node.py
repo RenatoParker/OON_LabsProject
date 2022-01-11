@@ -69,8 +69,17 @@ class Node:
             signal_information.path.pop(0)
             latency = line.latency_generation()
             noise = line.noise_generation(signal_information.signal_power, channel)
+            print("NOISE" , noise)
             signal_information.increment_latency(latency)
             signal_information.increment_noise(noise)
+            # todo 9.3  set for each line the optimal launch power -> significa che nella linea devo aggiungere un parametro
+            #  nella linea che tiene il launch power e qua chiamo una funzione per settarlo?
+            #  Non posso settarlo nel momento che costruisco la linea, perchè solo a questo punto ho info sul segnale, giusto?
+
+            launch_power = line.optimized_launch_power(channel,signal_information.signal_power)
+            print("opt lauchpower" , launch_power)
+            line.launch_power = launch_power
+
             # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
             # modification by lab7
             if (totalPath is not None) & (channel is not None):
