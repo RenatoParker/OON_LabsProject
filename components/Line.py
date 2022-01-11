@@ -95,41 +95,54 @@ class Line:
     def latency_generation(self):
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
-    def noise_generation(self, signal_power, channel):
-        print(channel)
-        print("nli:", self.nli_generation(signal_power, channel))
-        return self.ase_generation() + self.nli_generation(signal_power, channel)
+    def noise_generation(self, signal_power):
+        # todo la lunghezza nelle slide è messa in km, quindi qua che ci va?
+        loss = 10 ** (-self._constant["aDb"] * (self._length ) / 10)
+        Bn = 12.5e9
+        Pnli = self.nli_generation(signal_power) * signal_power ** 3 * loss * self._gain * Bn
+        GSNR = signal_power / (self.ase_generation() + Pnli)
+        print("GSNR:", GSNR)
+        return abs(GSNR)
 
     # Define a propagate method that updates the signal information modifying its
     # noise power and its latency and call the successive element propagate method,
     # accordingly to the specified path.
     def propagate(self, signal_information):
         signal_information.increment_latency(self.latency_generation())
-        signal_information.increment_noise(self.noise_generation())
-
+        signal_information.increment_noise(self.noise_generation(signal_information.signal_power, 10))
         return signal_information
 
     def ase_generation(self):
-        return self._n_amplifiers * (scipy.constants.Planck * (193.414 * 1e12) * (
-                12.5 * 1e9) * self._n_amplifiers * self._noise_figure * (self._gain - 1))
+        f = 193.414e12
+        Bn = 12.5e9
+        # todo non riesco a capire se "NF" richieda di mettere il numero di amplificatore
+        ase = self._n_amplifiers * (
+                scipy.constants.Planck * f * self._n_amplifiers * Bn * self._noise_figure * (self._gain - 1)
+        )
+        print("ase:", ase)
 
-    def nli_generation(self, signal_power, channel):
+        return ase
+
+    def nli_generation(self, signal_power):
         # RS = 32 GHz
-        # todo controlla questa funzione, aggiusta le costanti e definisci variabili invece di mettere i numeri
-        channel = 10
-        return signal_power * (channel ** 3) * self.etaNLI(channel) * self._n_amplifiers
+        nli = signal_power ** 3 * self.etaNLI() * self._n_amplifiers
+        print("nli generated:", nli)
+        return nli
 
-    def etaNLI(self, channel):
-        #todo l'argomento del log mi viene minore di 1 e quindi il log viene negativo, un bel * 1000 è li per fixare il tutto
+    def etaNLI(self):
         channel = 10
-        return ((16 / (27 * pi)) * math.log(
-            (pi ** 2) * self._constant["B2"] * 32e18 * channel * 1000 ** (2 * 32e9 / 50e9) / (2 * self._constant["A"]))
-                * self._constant["A"] * self._constant["GAMMA"] ** 2 * (self._length ** 2) /
-                (self._constant["B2"] * 32e27))
+        Rs = 32e9
+        etaNLI = ((16 / (27 * pi)) * math.log(
+            (pi ** 2) *
+            self._constant["B2"] *
+            Rs ** 2 * (channel ** (2 * Rs / 50e9)) / (2 * self._constant["A"] * 1e-3)) *
+                   (self._constant["GAMMA"] ** 2) * (self._length ** 2) / (4 * self._constant["A"] * (self._constant["B2"] * Rs ** 3)))
+        print("etaNLI: ", etaNLI)
+        return etaNLI
 
     def optimized_launch_power(self, channel, signal_power):
         # todo slide 32 - check
         # todo devo calcolare il gsnr di tutti e prendere il max
         # return (2 / 3) * (1 / (2 * self.etaNLI(channel) * self._constant["B2"] * (12.5 * 1e9 * 193.414 * 1e12 * signal_power) ** 2)) ** (1 / 3)
         # da questo devo far ritornare la potenza, non l'GSRN
-        return (signal_power / (2 * self._constant["B2"] * self.etaNLI(channel))) ** (1 / 3)
+        return (signal_power / (2 * self._constant["B2"] * self.etaNLI())) ** (1 / 3)

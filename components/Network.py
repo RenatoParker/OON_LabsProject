@@ -130,7 +130,7 @@ class Network:
             isSubPath = True
             return isSubPath
 
-    def calculate_bit_rate(self, path, strategy):
+    def calculate_bit_rate(self, path, transceiver):
         # todo Modify the method calculate bit rate of the class Network to have as input a light-path instead of the
         #  path in order to retrieve the specific symbol rate Rs.
 
@@ -138,13 +138,15 @@ class Network:
             self._weighted_paths.Path.apply(lambda x: x == path)].tolist()
 
         GSNR = self._weighted_paths.at[index[0], "signal_noise"]
-        if strategy == "fixed-rate":
+        print("GSNR ", GSNR)
+        print(transceiver)
+        if transceiver == "fixed_rate":
             if GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
                 return 100 * 10e9
             else:
                 return 0
-        if strategy == "flex-rate":
-            if GSNR < 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+        if transceiver == "flex_rate":
+            if GSNR < 2 * erfcinv(2 * 1e-3) ** 2 * 32e9 / 12.5e9:
                 return 0
             if (GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)) & (
                     GSNR < (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)):
@@ -152,10 +154,10 @@ class Network:
             if (GSNR >= (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)) & (
                     GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)):
                 return 200 * 10e9
-            if GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+            if GSNR > 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
                 return 400 * 10e9
 
-        if strategy == "shannon":
+        if transceiver == "shannon":
             return 2 * 32 * 10e9 * math.log((1 + GSNR * (32 * 10e9 / 12.5 * 10e9)), 2) * 10e9
 
     def updateRouteSpace(self, path):
@@ -311,7 +313,9 @@ class Network:
                     connection.snr = 0
                     connection.latency = None
                 else:
+                    print(pathAndChannel)
                     bit_rate = self.calculate_bit_rate(pathAndChannel[0], self._nodes[pathAndChannel[0][0]].transceiver)
+                    print(" bit rate", bit_rate)
                     if bit_rate < 0:
                         print("this path do not support minimum BitRate")
                         return
@@ -325,16 +329,16 @@ class Network:
                         connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
                     else:
                         connection.snr = 0
+                    return bit_rate
 
     def createAndManageConnections(self, trafficMatrix, label):
         connectionsList = []
-        print(chr(65 + random.randint(0, len(trafficMatrix[0]))))
-        print(self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0])))])
         connectionsList.append(
             Connection.Connection(
-                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0])))],
-                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0])))],
+                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0]) - 1))],
+                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0]) - 1))],
                 1))
 
-        self.stream(connectionsList, label)
+        bit_rate = self.stream(connectionsList, label)
+        print("Bit Rate: ", bit_rate)
         return 0
