@@ -11,20 +11,15 @@ from enum import Enum
 from components import Connection
 
 
-# todo """
-#  le matrici che hanno i path mi danno un tot di problemi perchè sto unsando delle liste
-#  la cosa corretta da fare è non passare i path come liste, ma fargli una pulita e passarle come stringhe.
-#  In realtà esiste un metrodo molto più ottimizzato: dovrei fare il traslato di quella matrice: i path dovrebbero
-#  essere le colonne di quella matrice (una colonna per ogni path) e nelle colonne metto i valori relativi a tale path
-#  questo di fatto è il modo più veloce per lavorare con gli hash su quella matrice """
-
 class Network:
     def __init__(self, nodes):
         self._nodes = nodes
         self._lines = {}
-        self._weighted_paths = None
         self._switching_matrix = {}  # todo: non devo metterla nel costruttore?
         self._route_space = pd.DataFrame(None, columns=["Path", "Status"])
+        self._weighted_paths = pd.DataFrame({
+            'attributes': ["latency", "signal_noise", "noise_ratio"],
+        })
 
         for node in self._nodes.values():
             for connectedNode in node.connected_node:
@@ -77,9 +72,16 @@ class Network:
         pd.set_option('display.max_rows', 30)
         print(self._route_space)
 
+    def pathToKey(self, path):
+        string = ""
+        for value in path:
+            string += value
+        return string
+
     def computeWeightedPaths(self):
-        data = []
         allPaths = []
+        # todo non funziona
+        self._weighted_paths.set_index('attributes', drop=True, inplace=True)
         for startingNode in self._nodes:
             for endNode in self._nodes:
                 if startingNode != endNode:
@@ -87,14 +89,15 @@ class Network:
                 for path in allPaths:
                     signalPropagated = self.probe(SignalInformation.SignalInformation(10, path.copy()))
                     if signalPropagated.noise_power > 0:
-                        print("ASD",signalPropagated.noise_power)
+                        # print("ASD",signalPropagated.noise_power)
                         noise_ratio = 10 * math.log(10 / signalPropagated.noise_power, 10)
                     else:
                         noise_ratio = 0
-                    data.append(
-                        [path, signalPropagated.latency, signalPropagated.noise_power, noise_ratio])
+                    # self._route_space2.append()
 
-        self._weighted_paths = pd.DataFrame(data, columns=["Path", "latency", "signal_noise", "noise_ratio"])
+                    # print(self.pathToKey(path))
+                    self._weighted_paths[self.pathToKey(path)] = [signalPropagated.latency, signalPropagated.noise_power, noise_ratio]
+
         print("Weightpath")
         print(self._weighted_paths)
 
@@ -134,12 +137,10 @@ class Network:
         # todo Modify the method calculate bit rate of the class Network to have as input a light-path instead of the
         #  path in order to retrieve the specific symbol rate Rs.
 
-        index = self._weighted_paths.index[
-            self._weighted_paths.Path.apply(lambda x: x == path)].tolist()
+        GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
 
-        GSNR = self._weighted_paths.at[index[0], "signal_noise"]
-        print("GSNR ", GSNR)
-        print(transceiver)
+        # print("GSNR ", GSNR)
+        # print(transceiver)
         if transceiver == "fixed_rate":
             if GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
                 return 100 * 10e9
@@ -253,14 +254,15 @@ class Network:
         if nodeA == nodeB:
             return None
         paths = self.find_paths(nodeA, nodeB)
-        data = []
-        weightedPaths = pd.DataFrame(data, columns=["Path", "latency", "signal_noise", "noise_ratio"])
+        snrs = []
+        snrs_paths = []
+        # devo scorrere prima tutti i path e poi capire quale ha il migliore SNR
         for path in paths:
-            subData = self._weighted_paths.loc[self._weighted_paths.Path.apply(lambda x: x == path)]
-            weightedPaths = pd.concat([weightedPaths, subData])
-        while not weightedPaths.empty:
-            max = weightedPaths.loc[weightedPaths["noise_ratio"] == weightedPaths["noise_ratio"].max()]
-            pathOfMax = max.iloc[0].Path
+            snrs.append(self._weighted_paths[self.pathToKey(path)].noise_ratio)
+            snrs_paths.append(path)
+        while len(snrs_paths) > 0:
+            maxSnr = max(snrs)
+            pathOfMax = snrs_paths[snrs.index(maxSnr)]
             freeChannels = self.getFreeChannelsOnPath(pathOfMax)
 
             if freeChannels is None:
@@ -272,21 +274,23 @@ class Network:
                     if i == 1:
                         return pathOfMax, index
             # se non lo trovo devo passare al prossimo path
-            weightedPaths = weightedPaths.drop([weightedPaths["noise_ratio"].idxmax()])
+            snrs.remove(maxSnr)
+            snrs_paths.remove(pathOfMax)
 
     def find_best_latency(self, nodeA, nodeB):
         if nodeA == nodeB:
             return None
         paths = self.find_paths(nodeA, nodeB)
-        data = []
-        weightedPaths = pd.DataFrame(data, columns=["Path", "latency", "signal_noise", "noise_ratio"])
+        latencies = []
+        latencies_paths = []
+        # devo scorrere prima tutti i path e poi capire quale ha il migliore SNR
         for path in paths:
-            subData = self._weighted_paths.loc[self._weighted_paths.Path.apply(lambda x: x == path)]
-            weightedPaths = pd.concat([weightedPaths, subData])
-        while not weightedPaths.empty:
-            max = weightedPaths.loc[weightedPaths["latency"] == weightedPaths["latency"].min()]
-            pathOfMax = max.iloc[0].Path
-            freeChannels = self.getFreeChannelsOnPath(pathOfMax)
+            latencies.append(self._weighted_paths[self.pathToKey(path)].latency)
+            latencies_paths.append(path)
+        while len(latencies_paths) > 0:
+            maxSnr = min(latencies)
+            pathOfMin = latencies_paths[latencies.index(maxSnr)]
+            freeChannels = self.getFreeChannelsOnPath(pathOfMin)
 
             if freeChannels is None:
                 print("ERROR")
@@ -295,9 +299,10 @@ class Network:
                 for index, i in enumerate(freeChannels):
                     # print(i, index)
                     if i == 1:
-                        return pathOfMax, index
+                        return pathOfMin, index
             # se non lo trovo devo passare al prossimo path
-            weightedPaths = weightedPaths.drop([weightedPaths["latency"].idxmin()])
+            latencies.remove(maxSnr)
+            latencies_paths.remove(pathOfMin)
 
     def stream(self, connections, label="latency"):
         for connection in connections:
@@ -316,7 +321,10 @@ class Network:
                     print(pathAndChannel)
                     bit_rate = self.calculate_bit_rate(pathAndChannel[0], self._nodes[pathAndChannel[0][0]].transceiver)
                     print(" bit rate", bit_rate)
-                    if bit_rate < 0:
+                    if bit_rate == None:
+                        print("Error: bit rate in None")
+                        return
+                    if bit_rate <= 0:
                         print("this path do not support minimum BitRate")
                         return
                     connection.bit_rate = bit_rate
@@ -332,13 +340,21 @@ class Network:
                     return bit_rate
 
     def createAndManageConnections(self, trafficMatrix, label):
-        connectionsList = []
-        connectionsList.append(
-            Connection.Connection(
-                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0]) - 1))],
-                self._nodes[chr(65 + random.randint(0, len(trafficMatrix[0]) - 1))],
-                1))
+        zero = 0
+        # todo questo while è da rivedere: per ora controllo di non trovare 36 volte 0 ma non va bene perchè i numeri sono presi a cso
 
-        bit_rate = self.stream(connectionsList, label)
-        print("Bit Rate: ", bit_rate)
+        while zero < (len(trafficMatrix[0]) ** 2):
+            row = random.randint(0, len(trafficMatrix[0]) - 1)
+            col = random.randint(0, len(trafficMatrix[0]) - 1)
+            # print(row, col)
+            # print(trafficMatrix[row][col])
+            # print(trafficMatrix)
+            if trafficMatrix[row][col] > 0:
+                zero = 0
+                bit_rate = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
+                print("Bit Rate: ", bit_rate)
+                trafficMatrix[row][col] -= (bit_rate/10e9)
+                # print(trafficMatrix)
+            else:
+                zero += 1
         return 0

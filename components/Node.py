@@ -66,31 +66,40 @@ class Node:
 
     def propagate(self, signal_information, line, channel, totalPath):
         if len(signal_information.path) > 1:
+            print("path", signal_information.path)
             signal_information.path.pop(0)
             latency = line.latency_generation()
             noise = line.noise_generation(signal_information.signal_power)
-            print("NOISE" , noise)
+            # print("NOISE" , noise)
             signal_information.increment_latency(latency)
             signal_information.increment_noise(noise)
             # todo 9.3  set for each line the optimal launch power -> significa che nella linea devo aggiungere un parametro
             #  nella linea che tiene il launch power e qua chiamo una funzione per settarlo?
             #  Non posso settarlo nel momento che costruisco la linea, perchè solo a questo punto ho info sul segnale, giusto?
 
-            launch_power = line.optimized_launch_power(channel,signal_information.signal_power)
-            print("opt lauchpower" , launch_power)
+            launch_power = line.optimized_launch_power(channel, signal_information.signal_power)
+            # print("opt lauchpower" , launch_power)
             line.launch_power = launch_power
 
             # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
             # modification by lab7
             if (totalPath is not None) & (channel is not None):
                 index = totalPath.index(self._label)
+                print(totalPath, index)
                 if (index != 0) & (index != len(totalPath)):
+                    # sto modificando self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0 con
+                    # self._switching_matrix[totalPath[index - 1]][totalPath[index]][channel + 1] = 0
                     if channel == 0:
-                        self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0
+                        self._switching_matrix[totalPath[index + 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0
                     else:
                         if channel == 9:
-                            self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0
+                            self._switching_matrix[totalPath[index + 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0
                         else:
-                            self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0
-                            self._switching_matrix[totalPath[index - 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0
+                            print("switching matrix of node: ", self._label)
+                            print("Total path: ", totalPath)
+                            print("index: ", index)
+                            print(self._switching_matrix[totalPath[index + 1]])
+                            print(self._switching_matrix[totalPath[index + 1]][totalPath[len(totalPath) - 1]])
+                            self._switching_matrix[totalPath[index + 1]][totalPath[len(totalPath) - 1]][channel - 1] = 0
+                            self._switching_matrix[totalPath[index + 1]][totalPath[len(totalPath) - 1]][channel + 1] = 0
             return signal_information

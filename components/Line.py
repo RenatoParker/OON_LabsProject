@@ -18,7 +18,7 @@ class Line:
         self._n_amplifiers = int(length // (80 * 1000))
         self._gain = 16
         self._noise_figure = 3
-        self._launch_power = 0
+        self._launch_power = 10
         print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
 
         self._constant = {
@@ -96,8 +96,9 @@ class Line:
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
     def noise_generation(self, signal_power):
+        #todo 9.1
         # todo la lunghezza nelle slide è messa in km, quindi qua che ci va?
-        loss = 10 ** (-self._constant["aDb"] * (self._length ) / 10)
+        loss = 10 ** (-self._constant["aDb"] * (self._length  ) / 10)
         Bn = 12.5e9
         Pnli = self.nli_generation(signal_power) * signal_power ** 3 * loss * self._gain * Bn
         GSNR = signal_power / (self.ase_generation() + Pnli)
@@ -115,18 +116,18 @@ class Line:
     def ase_generation(self):
         f = 193.414e12
         Bn = 12.5e9
-        # todo non riesco a capire se "NF" richieda di mettere il numero di amplificatore
         ase = self._n_amplifiers * (
-                scipy.constants.Planck * f * self._n_amplifiers * Bn * self._noise_figure * (self._gain - 1)
+                scipy.constants.Planck * f
+                * Bn * self._noise_figure * (self._gain - 1)
         )
-        print("ase:", ase)
+        # print("ase:", ase)
 
         return ase
 
     def nli_generation(self, signal_power):
         # RS = 32 GHz
-        nli = signal_power ** 3 * self.etaNLI() * self._n_amplifiers
-        print("nli generated:", nli)
+        nli = signal_power ** 3 * self.etaNLI() * (self._n_amplifiers - 1)
+        # print("nli generated:", nli)
         return nli
 
     def etaNLI(self):
@@ -137,12 +138,13 @@ class Line:
             self._constant["B2"] *
             Rs ** 2 * (channel ** (2 * Rs / 50e9)) / (2 * self._constant["A"] * 1e-3)) *
                    (self._constant["GAMMA"] ** 2) * (self._length ** 2) / (4 * self._constant["A"] * (self._constant["B2"] * Rs ** 3)))
-        print("etaNLI: ", etaNLI)
+        # print("etaNLI: ", etaNLI)
         return etaNLI
 
     def optimized_launch_power(self, channel, signal_power):
         # todo slide 32 - check
-        # todo devo calcolare il gsnr di tutti e prendere il max
         # return (2 / 3) * (1 / (2 * self.etaNLI(channel) * self._constant["B2"] * (12.5 * 1e9 * 193.414 * 1e12 * signal_power) ** 2)) ** (1 / 3)
         # da questo devo far ritornare la potenza, non l'GSRN
-        return (signal_power / (2 * self._constant["B2"] * self.etaNLI())) ** (1 / 3)
+        opt_pwr = ( (self._length /1000) * self._noise_figure * self._launch_power / ( 2 * self._constant["B2"] * self.etaNLI() ) ) ** (1/3)
+        # print("computer optimal power: ", opt_pwr)
+        return opt_pwr

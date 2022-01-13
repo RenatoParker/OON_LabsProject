@@ -62,7 +62,7 @@ if __name__ == '__main__':
             if indexRow == indexCol:
                 row.append(0)
             else:
-                row.append((indexCol + 1) * 100)
+                row.append((indexCol + 1)*(indexRow + 1) * 200)
         traffic_matrix.append(row)
 
     print(traffic_matrix)
