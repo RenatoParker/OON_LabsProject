@@ -7,7 +7,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import erfcinv
-from enum import Enum
+from components import Lightpath
 from components import Connection
 
 
@@ -87,7 +87,7 @@ class Network:
                 if startingNode != endNode:
                     allPaths = self.find_paths(startingNode, endNode)
                 for path in allPaths:
-                    signalPropagated = self.probe(SignalInformation.SignalInformation(10, path.copy()))
+                    signalPropagated = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
                     if signalPropagated.noise_power > 0:
                         # print("ASD",signalPropagated.noise_power)
                         noise_ratio = 10 * math.log(10 / signalPropagated.noise_power, 10)
@@ -133,33 +133,37 @@ class Network:
             isSubPath = True
             return isSubPath
 
-    def calculate_bit_rate(self, path, transceiver):
-        # todo Modify the method calculate bit rate of the class Network to have as input a light-path instead of the
-        #  path in order to retrieve the specific symbol rate Rs.
+
+    def calculate_bit_rate(self, lightpath, transceiver):
+        #  todo """9.4 Modify the method calculate bit rate of the class Network to have as input a light-path instead of the
+        #   path in order to retrieve the specific symbol rate Rs."""
+
+        path = lightpath.path
 
         GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
 
-        # print("GSNR ", GSNR)
-        # print(transceiver)
+        Rs = lightpath.rs
+        Bn = 12.5e9
+
         if transceiver == "fixed_rate":
-            if GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+            if GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * (Rs / Bn):
                 return 100 * 10e9
             else:
                 return 0
         if transceiver == "flex_rate":
-            if GSNR < 2 * erfcinv(2 * 1e-3) ** 2 * 32e9 / 12.5e9:
+            if GSNR < 2 * erfcinv(2 * 1e-3) ** 2 * (Rs / Bn):
                 return 0
-            if (GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)) & (
-                    GSNR < (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)):
+            if (GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * (Rs / Bn)) & (
+                    GSNR < (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * (Rs / Bn)):
                 return 100 * 10e9
-            if (GSNR >= (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)) & (
-                    GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9)):
+            if (GSNR >= (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * (Rs / Bn)) & (
+                    GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * (Rs / Bn)):
                 return 200 * 10e9
-            if GSNR > 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * 32 * 10e9 / (12.5 * 10e9):
+            if GSNR > 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * (Rs / Bn):
                 return 400 * 10e9
 
         if transceiver == "shannon":
-            return 2 * 32 * 10e9 * math.log((1 + GSNR * (32 * 10e9 / 12.5 * 10e9)), 2) * 10e9
+            return 2 * 32 * 10e9 * math.log((1 + GSNR * (Rs / Bn)), 2) * 10e9
 
     def updateRouteSpace(self, path):
         prev = path[0]
@@ -184,7 +188,6 @@ class Network:
                 start = next
                 rs_update *= matrix * lineObj.state
             self._route_space.at[index, "Status"] = rs_update
-        # print(self._route_space)
 
     def propagate(self, signal_information, channel):
         totalPath = signal_information.path.copy()
@@ -306,20 +309,25 @@ class Network:
 
     def stream(self, connections, label="latency"):
         for connection in connections:
+            print(connection)
             if label == "latency":
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
             else:
                 pathAndChannel = self.find_best_snr(connection.input.label, connection.output.label)
             if pathAndChannel is None:
                 print("No free channel found for connection:", connection.input.label, connection.output.label)
+                return 0
             else:
                 if len(pathAndChannel[0]) == 0:
                     print("No available path found")
                     connection.snr = 0
                     connection.latency = None
+                    return 0
                 else:
                     print(pathAndChannel)
-                    bit_rate = self.calculate_bit_rate(pathAndChannel[0], self._nodes[pathAndChannel[0][0]].transceiver)
+                    signal = SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy())
+                    lightpath = Lightpath.Lightpath(pathAndChannel[1], 0.01, pathAndChannel[0].copy())
+                    bit_rate = self.calculate_bit_rate(lightpath, self._nodes[pathAndChannel[0][0]].transceiver)
                     print(" bit rate", bit_rate)
                     if bit_rate == None:
                         print("Error: bit rate in None")
@@ -328,8 +336,7 @@ class Network:
                         print("this path do not support minimum BitRate")
                         return
                     connection.bit_rate = bit_rate
-                    pathSignal = self.propagate(SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy()),
-                                                pathAndChannel[1])
+                    pathSignal = self.propagate(signal, pathAndChannel[1])
                     print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
                     self.updateRouteSpace(pathAndChannel[0])
                     connection.latency = pathSignal.latency
@@ -343,18 +350,25 @@ class Network:
         zero = 0
         # todo questo while è da rivedere: per ora controllo di non trovare 36 volte 0 ma non va bene perchè i numeri sono presi a cso
 
-        while zero < (len(trafficMatrix[0]) ** 2):
+        allocatedConnections = 0
+
+        while zero < 200:
             row = random.randint(0, len(trafficMatrix[0]) - 1)
             col = random.randint(0, len(trafficMatrix[0]) - 1)
             # print(row, col)
             # print(trafficMatrix[row][col])
             # print(trafficMatrix)
             if trafficMatrix[row][col] > 0:
-                zero = 0
+                # zero = 0
                 bit_rate = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
                 print("Bit Rate: ", bit_rate)
+                if (bit_rate > 0 ):
+                    allocatedConnections += 1
                 trafficMatrix[row][col] -= (bit_rate/10e9)
                 # print(trafficMatrix)
             else:
                 zero += 1
+
+        print(allocatedConnections)
+
         return 0

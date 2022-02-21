@@ -96,13 +96,13 @@ class Line:
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
     def noise_generation(self, signal_power):
-        #todo 9.1
+        # todo 9.1
         # todo la lunghezza nelle slide è messa in km, quindi qua che ci va?
-        loss = 10 ** (-self._constant["aDb"] * (self._length  ) / 10)
+        loss = 10 ** (-self._constant["aDb"] * (self._length) / 10)
         Bn = 12.5e9
         Pnli = self.nli_generation(signal_power) * signal_power ** 3 * loss * self._gain * Bn
         GSNR = signal_power / (self.ase_generation() + Pnli)
-        print("GSNR:", GSNR)
+        # print("GSNR:", GSNR)
         return abs(GSNR)
 
     # Define a propagate method that updates the signal information modifying its
@@ -120,7 +120,6 @@ class Line:
                 scipy.constants.Planck * f
                 * Bn * self._noise_figure * (self._gain - 1)
         )
-        # print("ase:", ase)
 
         return ase
 
@@ -137,14 +136,20 @@ class Line:
             (pi ** 2) *
             self._constant["B2"] *
             Rs ** 2 * (channel ** (2 * Rs / 50e9)) / (2 * self._constant["A"] * 1e-3)) *
-                   (self._constant["GAMMA"] ** 2) * (self._length ** 2) / (4 * self._constant["A"] * (self._constant["B2"] * Rs ** 3)))
+                  (self._constant["GAMMA"] ** 2) * (self._length ** 2) / (
+                              4 * self._constant["A"] * (self._constant["B2"] * Rs ** 3)))
         # print("etaNLI: ", etaNLI)
         return etaNLI
 
-    def optimized_launch_power(self, channel, signal_power):
+    def optimized_launch_power(self, signal_power):
         # todo slide 32 - check
-        # return (2 / 3) * (1 / (2 * self.etaNLI(channel) * self._constant["B2"] * (12.5 * 1e9 * 193.414 * 1e12 * signal_power) ** 2)) ** (1 / 3)
         # da questo devo far ritornare la potenza, non l'GSRN
-        opt_pwr = ( (self._length /1000) * self._noise_figure * self._launch_power / ( 2 * self._constant["B2"] * self.etaNLI() ) ) ** (1/3)
+        Bn = 12.5e9
+        opt_pwr = (
+            (self.noise_figure * self.length * signal_power) /
+            (2 * Bn) * self.etaNLI()
+        ) ** (1/3)
+        # opt_pwr = ((self._length / 1000) * self._noise_figure * self._launch_power / (
+        #             2 * self._constant["B2"] * self.etaNLI())) ** (1 / 3)
         # print("computer optimal power: ", opt_pwr)
         return opt_pwr
