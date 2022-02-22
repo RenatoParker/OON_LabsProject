@@ -92,3 +92,14 @@ class Node:
                                 self._switching_matrix[key][channel + 1] = 0
                                 self._switching_matrix[key][channel - 1] = 0
             return signal_information
+
+    def closeConnection(self, path, channel, totalPath):
+        # todo forse mi serve un path copy
+        if len(path) > 1:
+            path.pop(0)
+            if (totalPath is not None) & (channel is not None):
+                index = totalPath.index(self._label)
+                if (index != 0) & (index != len(totalPath)):
+                    for key in self._switching_matrix:
+                        self._switching_matrix[key][channel] = 1
+            return path

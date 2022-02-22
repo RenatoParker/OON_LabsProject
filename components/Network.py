@@ -135,13 +135,8 @@ class Network:
 
 
     def calculate_bit_rate(self, lightpath, transceiver):
-        #  todo """9.4 Modify the method calculate bit rate of the class Network to have as input a light-path instead of the
-        #   path in order to retrieve the specific symbol rate Rs."""
-
         path = lightpath.path
-
         GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
-
         Rs = lightpath.rs
         Bn = 12.5e9
 
@@ -180,8 +175,6 @@ class Network:
                 next = path[i + 1]
                 lineObj = self._lines[start + next]
                 if (i != 0) & (i != len(path)):
-                    # lab 7: sto modificando la matrice che viene usata da quella del network a quella del nodo
-                    # matrix = self._switching_matrix[start][path[i-1]][next]
                     matrix = self._nodes[start].switching_matrix[path[i - 1]][next]
                 else:
                     matrix = np.array([1] * 10, int)
@@ -198,6 +191,15 @@ class Network:
             signal_information = start_node.propagate(signal_information, line, channel, totalPath)
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
+        # todo pensa se questo serve
+        # if channel == 0:
+        #     self.freeConnection(totalPath.copy(), channel + 1)
+        # else:
+        #     if channel == 9:
+        #         self.freeConnection(totalPath.copy(), channel - 1)
+        #     else:
+        #         self.freeConnection(totalPath.copy(), channel + 1)
+        #         self.freeConnection(totalPath.copy(), channel - 1)
         return signal_information
 
     def probe(self, signal_information):
@@ -209,8 +211,8 @@ class Network:
 
     def draw(self):
         figure, axes = plt.subplots()
-        plt.xlim(-800000, 800000)
-        plt.ylim(-800000, 800000)
+        plt.xlim(0, 600000)
+        plt.ylim(-100000, 600000)
         for node in self._nodes.values():
             print(node.position[0], node.position[1])
             draw_circle = plt.Circle((node.position[0], node.position[1]), 30000, color='r')
@@ -246,11 +248,9 @@ class Network:
 
     def getFreeChannelsOnPath(self, path):
         channelsStatus = self._route_space[(self._route_space["Path"].isin([path]))]["Status"].values
-        # print("Query:\n", channelsStatus)
         if len(channelsStatus) == 0:
             return None
         else:
-            # print(path, channelsStatus)
             return channelsStatus[0]
 
     def find_best_snr(self, nodeA, nodeB):
@@ -314,7 +314,8 @@ class Network:
             else:
                 pathAndChannel = self.find_best_snr(connection.input.label, connection.output.label)
             if pathAndChannel is None:
-                print("No free channel found for connection:", connection.input.label, connection.output.label)
+                #todo
+                # print("No free channel found for connection:", connection.input.label, connection.output.label)
                 return -1
             else:
                 if len(pathAndChannel[0]) == 0:
@@ -326,7 +327,7 @@ class Network:
                     signal = SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy())
                     lightpath = Lightpath.Lightpath(pathAndChannel[1], 0.01, pathAndChannel[0].copy())
                     bit_rate = self.calculate_bit_rate(lightpath, self._nodes[pathAndChannel[0][0]].transceiver)
-                    if bit_rate == None:
+                    if bit_rate is None:
                         print("Error: bit rate in None")
                         return
                     if bit_rate <= 0:
@@ -334,7 +335,8 @@ class Network:
                         return
                     connection.bit_rate = bit_rate
                     pathSignal = self.propagate(signal, pathAndChannel[1])
-                    print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
+                    #todo
+                    # print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
                     self.updateRouteSpace(pathAndChannel[0])
                     connection.latency = pathSignal.latency
                     if pathSignal.noise_power != 0:
@@ -352,15 +354,15 @@ class Network:
         startingMatrix = np.array(trafficMatrix)
         oldMatrix = np.array(trafficMatrix)
 
-        connectionAllocatedInLastRound = True
-
         while zero < 200:
             row = random.randint(0, len(trafficMatrix[0]) - 1)
             col = random.randint(0, len(trafficMatrix[0]) - 1)
+
             if startingMatrix[row][col] > 0:
                 bit_rate = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
                 if bit_rate > 0:
-                    print("Bit Rate: ", bit_rate / 10e9, " Gbps")
+                    #todo
+                    # print("Bit Rate: ", bit_rate / 10e9, " Gbps")
                     allocatedConnections += 1
                     bitRateRemaing = startingMatrix[row][col] - (bit_rate/10e9)
                     if bitRateRemaing > 0:
@@ -373,10 +375,7 @@ class Network:
             else:
                 zero += 1
                 blockingEvent += 1
-        #
-        # for row in startingMatrix:
-        #     for element in row:
-        #         print(element)
+        print(" - - - - - - - - - -")
 
         print("Total allocated connection:\t",allocatedConnections)
         diff = np.abs(startingMatrix - oldMatrix)
@@ -389,5 +388,43 @@ class Network:
         print("Total allocated bitRate:\t", bitrateAllocated)
 
         print("Total blocking events:\t", blockingEvent)
+        print(" - - - - - - - - - -")
 
+        simulationResults = {
+            "bitrateAllocated": bitrateAllocated,
+            "allocatedConnections": allocatedConnections,
+            "blockingEvent": blockingEvent
+        }
+
+        # todo here
+        self.freeNet()
+
+        return simulationResults
+
+    def freeConnection(self, path, channel):
+        # print("free connection for path:\t", path, " on channel:\t",channel)
+        totalPath = path.copy()
+        while len(path) > 1:
+            # print(path)
+            start_node = self._nodes[path[0]]
+            line = self._lines[path[0] + path[1]]
+            line.state[channel] = 1
+            start_node.closeConnection(path, channel, totalPath)
+            path.pop(0)
+        for node in totalPath:
+            self._nodes[node].switching_matrix = self._switching_matrix[node]
+            # print(self._switching_matrix[node])
+        return 0
+
+    def freeNet(self):
+        # print(self._route_space)
+        for index, row in self._route_space.iterrows():
+            channel = 0
+            for status in row['Status']:
+                if status == 0:
+                    self.freeConnection(row['Path'].copy(), channel)
+                    self.updateRouteSpace(row['Path'].copy())
+                channel += 1
+
+        # print(self._route_space)
         return 0

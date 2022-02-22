@@ -33,7 +33,7 @@ if __name__ == '__main__':
             nodeData = nodeValue
             nodeData["label"] = nodeKey
             # il transceiver non è specificato nei file; in teoria c'è un default nel costruttore del nodo
-            nodeData["transceiver"] = "shannon"
+            # nodeData["transceiver"] = "shannon"
             new_node = Node.Node(nodeData)
             nodes_full[nodeKey] = new_node
 
@@ -46,14 +46,12 @@ if __name__ == '__main__':
             new_node = Node.Node(nodeData)
             nodes_not_full[nodeKey] = new_node
 
-    net = Network.Network(nodes_not_full)
+    # net = Network.Network(nodes_not_full)
+    net = Network.Network(nodes_full)
     net.connect()
     # net.draw()
-    # net.find_best_snr("A", "F")
-    # net.find_best_latency("A", "F")
     net.initRouteSpace()
     net.computeWeightedPaths()
-    # net.checkIfPathIsFree(["A", "B"])
 
     # connectionsList = []
     # for i in range(100):
@@ -64,15 +62,18 @@ if __name__ == '__main__':
     # net.stream(connectionsList, "latency")
 
     traffic_matrix = []
+    simulationResults = []
 
-    for indexRow, valueRow in enumerate(nodes_not_full):
-        row = []
-        for indexCol, valueCol in enumerate(nodes_not_full):
-            if indexRow == indexCol:
-                row.append(0)
-            else:
-                row.append((indexCol + 1)*(indexRow + 1) * 200)
-        traffic_matrix.append(row)
+    for m in range(50):
+        for indexRow, valueRow in enumerate(nodes_not_full):
+            row = []
+            for indexCol, valueCol in enumerate(nodes_not_full):
+                if indexRow == indexCol:
+                    row.append(0)
+                else:
+                    row.append((indexCol + 1) * (indexRow + 1) * 200)
+            traffic_matrix.append(row)
+        # print(traffic_matrix)
+        simulationResults.append(net.createAndManageConnections(traffic_matrix, "snr"))
 
-    print(traffic_matrix)
-    net.createAndManageConnections(traffic_matrix, "latency")
+    print(simulationResults)
