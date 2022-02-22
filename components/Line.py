@@ -126,7 +126,6 @@ class Line:
     def nli_generation(self, signal_power):
         # RS = 32 GHz
         nli = signal_power ** 3 * self.etaNLI() * (self._n_amplifiers - 1)
-        # print("nli generated:", nli)
         return nli
 
     def etaNLI(self):
@@ -138,18 +137,12 @@ class Line:
             Rs ** 2 * (channel ** (2 * Rs / 50e9)) / (2 * self._constant["A"] * 1e-3)) *
                   (self._constant["GAMMA"] ** 2) * (self._length ** 2) / (
                               4 * self._constant["A"] * (self._constant["B2"] * Rs ** 3)))
-        # print("etaNLI: ", etaNLI)
         return etaNLI
 
     def optimized_launch_power(self, signal_power):
-        # todo slide 32 - check
-        # da questo devo far ritornare la potenza, non l'GSRN
         Bn = 12.5e9
         opt_pwr = (
             (self.noise_figure * self.length * signal_power) /
             (2 * Bn) * self.etaNLI()
         ) ** (1/3)
-        # opt_pwr = ((self._length / 1000) * self._noise_figure * self._launch_power / (
-        #             2 * self._constant["B2"] * self.etaNLI())) ** (1 / 3)
-        # print("computer optimal power: ", opt_pwr)
         return opt_pwr

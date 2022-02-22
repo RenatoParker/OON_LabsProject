@@ -8,7 +8,7 @@ class Node:
         if "transceiver" in data:
             self._transceiver = data["transceiver"]
         else:
-            self._transceiver = "fixed-rate"
+            self._transceiver = "fixed_rate"
         print("New node created:", "\t",
               "Label: ", self._label, "\t",
               "Position:", self._position, "\t",
@@ -66,23 +66,16 @@ class Node:
 
     def propagate(self, signal_information, line, channel, totalPath):
         if len(signal_information.path) > 1:
-            # print("path", signal_information.path)
             signal_information.path.pop(0)
             latency = line.latency_generation()
             noise = line.noise_generation(signal_information.signal_power)
-            # print("NOISE" , noise)
             signal_information.increment_latency(latency)
             signal_information.increment_noise(noise)
-            # todo 9.3  set for each line the optimal launch power
             launch_power = line.optimized_launch_power(signal_information.signal_power)
-            # print("opt lauchpower" , launch_power)
             line.launch_power = launch_power
 
-            # print("Propagate:", signal_information.path, "Latency:\t", latency, "Noise:\t", noise)
-            # modification by lab7
             if (totalPath is not None) & (channel is not None):
                 index = totalPath.index(self._label)
-                print(totalPath, index)
                 if (index != 0) & (index != len(totalPath)):
                     if channel == 0:
                         for key in self._switching_matrix:

@@ -309,14 +309,13 @@ class Network:
 
     def stream(self, connections, label="latency"):
         for connection in connections:
-            print(connection)
             if label == "latency":
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
             else:
                 pathAndChannel = self.find_best_snr(connection.input.label, connection.output.label)
             if pathAndChannel is None:
                 print("No free channel found for connection:", connection.input.label, connection.output.label)
-                return 0
+                return -1
             else:
                 if len(pathAndChannel[0]) == 0:
                     print("No available path found")
@@ -324,11 +323,9 @@ class Network:
                     connection.latency = None
                     return 0
                 else:
-                    print(pathAndChannel)
                     signal = SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy())
                     lightpath = Lightpath.Lightpath(pathAndChannel[1], 0.01, pathAndChannel[0].copy())
                     bit_rate = self.calculate_bit_rate(lightpath, self._nodes[pathAndChannel[0][0]].transceiver)
-                    print(" bit rate", bit_rate)
                     if bit_rate == None:
                         print("Error: bit rate in None")
                         return
@@ -351,24 +348,46 @@ class Network:
         # todo questo while è da rivedere: per ora controllo di non trovare 36 volte 0 ma non va bene perchè i numeri sono presi a cso
 
         allocatedConnections = 0
+        blockingEvent = 0
+        startingMatrix = np.array(trafficMatrix)
+        oldMatrix = np.array(trafficMatrix)
+
+        connectionAllocatedInLastRound = True
 
         while zero < 200:
             row = random.randint(0, len(trafficMatrix[0]) - 1)
             col = random.randint(0, len(trafficMatrix[0]) - 1)
-            # print(row, col)
-            # print(trafficMatrix[row][col])
-            # print(trafficMatrix)
-            if trafficMatrix[row][col] > 0:
-                # zero = 0
+            if startingMatrix[row][col] > 0:
                 bit_rate = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
-                print("Bit Rate: ", bit_rate)
-                if (bit_rate > 0 ):
+                if bit_rate > 0:
+                    print("Bit Rate: ", bit_rate / 10e9, " Gbps")
                     allocatedConnections += 1
-                trafficMatrix[row][col] -= (bit_rate/10e9)
-                # print(trafficMatrix)
+                    bitRateRemaing = startingMatrix[row][col] - (bit_rate/10e9)
+                    if bitRateRemaing > 0:
+                        startingMatrix[row][col] = bitRateRemaing
+                    else:
+                        startingMatrix[row][col] = 0
+                if bit_rate == -1:
+                    blockingEvent += 1
+
             else:
                 zero += 1
+                blockingEvent += 1
+        #
+        # for row in startingMatrix:
+        #     for element in row:
+        #         print(element)
 
-        print(allocatedConnections)
+        print("Total allocated connection:\t",allocatedConnections)
+        diff = np.abs(startingMatrix - oldMatrix)
+        bitrateAllocated = 0
+
+        for row in diff:
+            for element in row:
+                bitrateAllocated += element
+
+        print("Total allocated bitRate:\t", bitrateAllocated)
+
+        print("Total blocking events:\t", blockingEvent)
 
         return 0

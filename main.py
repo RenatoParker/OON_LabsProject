@@ -1,8 +1,6 @@
-import random
 
 from components import Network
 from components import Node
-from components import Connection
 from pathlib import Path
 
 import json
@@ -19,16 +17,27 @@ if __name__ == '__main__':
     #         nodes[nodeKey] = new_node
 
     root = Path(__file__).parent
-    with open("Resource/nodes_full_flex_rate.json", "r") as read_file:
+    # with open("Resource/nodes_full_flex_rate.json", "r") as read_file:
+    #     nodesJson = json.load(read_file)
+    #     nodes_full = {}
+    #     for nodeKey, nodeValue in nodesJson.items():
+    #         nodeData = nodeValue
+    #         nodeData["label"] = nodeKey
+    #         new_node = Node.Node(nodeData)
+    #         nodes_full[nodeKey] = new_node
+
+    with open("Resource/279186/full_network.json", "r") as read_file:
         nodesJson = json.load(read_file)
         nodes_full = {}
         for nodeKey, nodeValue in nodesJson.items():
             nodeData = nodeValue
             nodeData["label"] = nodeKey
+            # il transceiver non è specificato nei file; in teoria c'è un default nel costruttore del nodo
+            nodeData["transceiver"] = "shannon"
             new_node = Node.Node(nodeData)
             nodes_full[nodeKey] = new_node
 
-    with open("Resource/nodes_not_full.json", "r") as read_file:
+    with open("Resource/279186/not_full_network.json", "r") as read_file:
         nodesJson = json.load(read_file)
         nodes_not_full = {}
         for nodeKey, nodeValue in nodesJson.items():
@@ -37,7 +46,7 @@ if __name__ == '__main__':
             new_node = Node.Node(nodeData)
             nodes_not_full[nodeKey] = new_node
 
-    net = Network.Network(nodes_full)
+    net = Network.Network(nodes_not_full)
     net.connect()
     # net.draw()
     # net.find_best_snr("A", "F")
