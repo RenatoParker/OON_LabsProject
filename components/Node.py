@@ -68,11 +68,11 @@ class Node:
         if len(signal_information.path) > 1:
             signal_information.path.pop(0)
             latency = line.latency_generation()
-            noise = line.noise_generation(signal_information.signal_power)
-            signal_information.increment_latency(latency)
-            signal_information.increment_noise(noise)
-            launch_power = line.optimized_launch_power(signal_information.signal_power)
+            launch_power = line.optimized_launch_power()
             line.launch_power = launch_power
+            noise = line.noise_generation(launch_power)
+            signal_information.increment_latency(latency)
+            signal_information.noise_power = noise
 
             if (totalPath is not None) & (channel is not None):
                 index = totalPath.index(self._label)

@@ -87,21 +87,17 @@ class Network:
                 if startingNode != endNode:
                     allPaths = self.find_paths(startingNode, endNode)
                 for path in allPaths:
-                    signalPropagated = self.probe(SignalInformation.SignalInformation(0.01, path.copy()))
+                    signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
+                    signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
                     if signalPropagated.noise_power > 0:
-                        # print("ASD",signalPropagated.noise_power)
-                        noise_ratio = 10 * math.log(10 / signalPropagated.noise_power, 10)
+                        noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
                     else:
                         noise_ratio = 0
-                    # self._route_space2.append()
-
-                    # print(self.pathToKey(path))
                     self._weighted_paths[self.pathToKey(path)] = [signalPropagated.latency, signalPropagated.noise_power, noise_ratio]
 
         print("Weightpath")
         print(self._weighted_paths)
 
-    # each node must have a dict of lines and each line must have a dictionary of a node
     def connect(self):
         for nodeLabel, node in self._nodes.items():
             self._switching_matrix[nodeLabel] = node.switching_matrix
@@ -133,32 +129,42 @@ class Network:
             isSubPath = True
             return isSubPath
 
-
     def calculate_bit_rate(self, lightpath, transceiver):
         path = lightpath.path
         GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
         Rs = lightpath.rs
         Bn = 12.5e9
 
+        # print(self._weighted_paths[self.pathToKey(path)])
+
+        # print("GSNR retrived:", GSNR)
+        # print(2 * erfcinv(2 * 1e-3) ** 2 * (Rs / Bn))
+        # print((14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * (Rs / Bn))
+        # print(10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * (Rs / Bn))
+
+        bitRate = 0
+
         if transceiver == "fixed_rate":
             if GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * (Rs / Bn):
-                return 100 * 10e9
+                bitRate = 100 * 10e9
             else:
-                return 0
+                bitRate = 0
         if transceiver == "flex_rate":
             if GSNR < 2 * erfcinv(2 * 1e-3) ** 2 * (Rs / Bn):
-                return 0
+                bitRate = 0
             if (GSNR >= 2 * erfcinv(2 * 1 * 10e-3) ** 2 * (Rs / Bn)) & (
                     GSNR < (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * (Rs / Bn)):
-                return 100 * 10e9
+                bitRate = 100 * 10e9
             if (GSNR >= (14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * (Rs / Bn)) & (
                     GSNR < 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * (Rs / Bn)):
-                return 200 * 10e9
+                bitRate = 200 * 10e9
             if GSNR > 10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * (Rs / Bn):
-                return 400 * 10e9
+                bitRate = 400 * 10e9
 
         if transceiver == "shannon":
-            return 2 * 32 * 10e9 * math.log((1 + GSNR * (Rs / Bn)), 2) * 10e9
+            bitRate = 2 * 32 * 10e9 * math.log((1 + GSNR * (Rs / Bn)), 2) * 10e9
+
+        return [bitRate, GSNR]
 
     def updateRouteSpace(self, path):
         prev = path[0]
@@ -189,17 +195,10 @@ class Network:
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
             line.state[channel] = 0
             signal_information = start_node.propagate(signal_information, line, channel, totalPath)
+            self._weighted_paths[self.pathToKey(totalPath)]["signal_noise"] = signal_information._noise_power
+            # GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
-        # todo pensa se questo serve
-        # if channel == 0:
-        #     self.freeConnection(totalPath.copy(), channel + 1)
-        # else:
-        #     if channel == 9:
-        #         self.freeConnection(totalPath.copy(), channel - 1)
-        #     else:
-        #         self.freeConnection(totalPath.copy(), channel + 1)
-        #         self.freeConnection(totalPath.copy(), channel - 1)
         return signal_information
 
     def probe(self, signal_information):
@@ -308,6 +307,7 @@ class Network:
             latencies_paths.remove(pathOfMin)
 
     def stream(self, connections, label="latency"):
+
         for connection in connections:
             if label == "latency":
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
@@ -316,24 +316,24 @@ class Network:
             if pathAndChannel is None:
                 #todo
                 # print("No free channel found for connection:", connection.input.label, connection.output.label)
-                return -1
+                return [-1,0]
             else:
                 if len(pathAndChannel[0]) == 0:
                     print("No available path found")
                     connection.snr = 0
                     connection.latency = None
-                    return 0
+                    return [0,0]
                 else:
-                    signal = SignalInformation.SignalInformation(0.01, pathAndChannel[0].copy())
-                    lightpath = Lightpath.Lightpath(pathAndChannel[1], 0.01, pathAndChannel[0].copy())
-                    bit_rate = self.calculate_bit_rate(lightpath, self._nodes[pathAndChannel[0][0]].transceiver)
-                    if bit_rate is None:
-                        print("Error: bit rate in None")
-                        return
-                    if bit_rate <= 0:
+                    signal = SignalInformation.SignalInformation(0.001, pathAndChannel[0].copy())
+                    lightpath = Lightpath.Lightpath(pathAndChannel[1], 0.001, pathAndChannel[0].copy())
+                    bitRateAndGSNR = self.calculate_bit_rate(lightpath, self._nodes[pathAndChannel[0][0]].transceiver)
+                    if bitRateAndGSNR[0] is None:
+                        print("Error: bit rate is None")
+                        return [0,0]
+                    if bitRateAndGSNR[0] <= 0:
                         print("this path do not support minimum BitRate")
-                        return
-                    connection.bit_rate = bit_rate
+                        return [0,0]
+                    connection.bit_rate = bitRateAndGSNR[0]
                     pathSignal = self.propagate(signal, pathAndChannel[1])
                     #todo
                     # print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
@@ -343,7 +343,7 @@ class Network:
                         connection.snr = 10 * math.log(0.001 / pathSignal.noise_power, 10)
                     else:
                         connection.snr = 0
-                    return bit_rate
+                    return bitRateAndGSNR
 
     def createAndManageConnections(self, trafficMatrix, label):
         zero = 0
@@ -353,17 +353,21 @@ class Network:
         blockingEvent = 0
         startingMatrix = np.array(trafficMatrix)
         oldMatrix = np.array(trafficMatrix)
+        GSNRavg = 0
 
         while zero < 200:
             row = random.randint(0, len(trafficMatrix[0]) - 1)
             col = random.randint(0, len(trafficMatrix[0]) - 1)
 
             if startingMatrix[row][col] > 0:
-                bit_rate = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
+                bitRateAndGSNR = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
+                bit_rate = bitRateAndGSNR[0]
+                GSNR = bitRateAndGSNR[1]
                 if bit_rate > 0:
                     #todo
                     # print("Bit Rate: ", bit_rate / 10e9, " Gbps")
                     allocatedConnections += 1
+                    GSNRavg += GSNR
                     bitRateRemaing = startingMatrix[row][col] - (bit_rate/10e9)
                     if bitRateRemaing > 0:
                         startingMatrix[row][col] = bitRateRemaing
@@ -375,6 +379,8 @@ class Network:
             else:
                 zero += 1
                 blockingEvent += 1
+
+        GSNRavg = GSNRavg / allocatedConnections
         print(" - - - - - - - - - -")
 
         print("Total allocated connection:\t",allocatedConnections)
@@ -386,26 +392,23 @@ class Network:
                 bitrateAllocated += element
 
         print("Total allocated bitRate:\t", bitrateAllocated)
-
         print("Total blocking events:\t", blockingEvent)
-        print(" - - - - - - - - - -")
+        print("GSNR avg:\t", GSNRavg)
 
         simulationResults = {
             "bitrateAllocated": bitrateAllocated,
             "allocatedConnections": allocatedConnections,
-            "blockingEvent": blockingEvent
+            "blockingEvent": blockingEvent,
+            "GSNRavg": GSNRavg
         }
 
-        # todo here
         self.freeNet()
 
         return simulationResults
 
     def freeConnection(self, path, channel):
-        # print("free connection for path:\t", path, " on channel:\t",channel)
         totalPath = path.copy()
         while len(path) > 1:
-            # print(path)
             start_node = self._nodes[path[0]]
             line = self._lines[path[0] + path[1]]
             line.state[channel] = 1
@@ -413,11 +416,9 @@ class Network:
             path.pop(0)
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
-            # print(self._switching_matrix[node])
         return 0
 
     def freeNet(self):
-        # print(self._route_space)
         for index, row in self._route_space.iterrows():
             channel = 0
             for status in row['Status']:
@@ -425,6 +426,4 @@ class Network:
                     self.freeConnection(row['Path'].copy(), channel)
                     self.updateRouteSpace(row['Path'].copy())
                 channel += 1
-
-        # print(self._route_space)
         return 0

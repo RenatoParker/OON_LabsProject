@@ -2,6 +2,7 @@
 from components import Network
 from components import Node
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 import json
 
@@ -33,7 +34,7 @@ if __name__ == '__main__':
             nodeData = nodeValue
             nodeData["label"] = nodeKey
             # il transceiver non è specificato nei file; in teoria c'è un default nel costruttore del nodo
-            # nodeData["transceiver"] = "shannon"
+            nodeData["transceiver"] = "flex_rate"
             new_node = Node.Node(nodeData)
             nodes_full[nodeKey] = new_node
 
@@ -52,28 +53,61 @@ if __name__ == '__main__':
     # net.draw()
     net.initRouteSpace()
     net.computeWeightedPaths()
-
-    # connectionsList = []
-    # for i in range(100):
-    #     connectionsList.append(
-    #         Connection.Connection(random.choice(list(net.nodes.values())), random.choice(list(net.nodes.values())), 1))
-    # # connectionsList.append( Connection.Connection( nodes_full["A"], nodes_full["F"], 1))
-    # net.stream(connectionsList, "snr")
-    # net.stream(connectionsList, "latency")
-
-    traffic_matrix = []
     simulationResults = []
 
-    for m in range(50):
+    for m in range(1, 50):
+        traffic_matrix = []
         for indexRow, valueRow in enumerate(nodes_not_full):
             row = []
             for indexCol, valueCol in enumerate(nodes_not_full):
                 if indexRow == indexCol:
                     row.append(0)
                 else:
-                    row.append((indexCol + 1) * (indexRow + 1) * 200)
+                    row.append(100 * m)
             traffic_matrix.append(row)
-        # print(traffic_matrix)
-        simulationResults.append(net.createAndManageConnections(traffic_matrix, "snr"))
+        print(traffic_matrix)
+        simulationResults.append(net.createAndManageConnections(traffic_matrix, "latency"))
 
-    print(simulationResults)
+    avgBitrateAllocated = 0
+    avgAllocatedConnections = 0
+    avgBlockingEvent = 0
+
+    GSNRavgs = []
+    bitrateAllocated = []
+    allocatedConnections = []
+    blockingEvent = []
+
+    for res in simulationResults:
+        print(res)
+        avgBitrateAllocated += res["bitrateAllocated"]
+        avgAllocatedConnections += res["allocatedConnections"]
+        avgBlockingEvent += res["blockingEvent"]
+
+        GSNRavgs.append(res["GSNRavg"])
+        bitrateAllocated.append(res["bitrateAllocated"])
+        allocatedConnections.append(res["allocatedConnections"])
+        blockingEvent.append(res["blockingEvent"])
+
+    avgBitrateAllocated /= len(simulationResults)
+    avgAllocatedConnections /= len(simulationResults)
+    avgBlockingEvent /= len(simulationResults)
+
+    print(avgBitrateAllocated)
+    print(avgAllocatedConnections)
+    print(avgBlockingEvent)
+
+    plt.bar(range(1, 50), bitrateAllocated)
+    plt.yscale('symlog')
+    plt.show()
+    plt.bar(range(1, 50), allocatedConnections)
+    plt.yscale('log')
+    plt.show()
+    plt.bar(range(1, 50), blockingEvent)
+    plt.show()
+    print(GSNRavgs)
+    print(type(GSNRavgs))
+    plt.bar(range(1, 50), GSNRavgs)
+    plt.show()
+
+
+    # print(simulationResults)

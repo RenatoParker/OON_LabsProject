@@ -98,19 +98,23 @@ class Line:
     def noise_generation(self, signal_power):
         # todo 9.1
         # todo la lunghezza nelle slide è messa in km, quindi qua che ci va?
-        loss = 10 ** (-self._constant["aDb"] * (self._length) / 10)
+        # GNR deve essere tra 20 e 30
+        loss = 10 ** (-self._constant["aDb"] * (self._length ) / 10)
         Bn = 12.5e9
-        Pnli = self.nli_generation(signal_power) * signal_power ** 3 * loss * self._gain * Bn
+        Pnli = self.nli_generation(signal_power) * (signal_power ** 3) * Bn * loss * self._gain
+
         GSNR = signal_power / (self.ase_generation() + Pnli)
-        # print("GSNR:", GSNR)
-        return abs(GSNR)
+        # print("GSNR COMPUTED:", GSNR)
+        # if (GSNR > 1000):
+        #     print("grande")
+        return GSNR
 
     # Define a propagate method that updates the signal information modifying its
     # noise power and its latency and call the successive element propagate method,
     # accordingly to the specified path.
     def propagate(self, signal_information):
         signal_information.increment_latency(self.latency_generation())
-        signal_information.increment_noise(self.noise_generation(signal_information.signal_power, 10))
+        signal_information.increment_noise(self.noise_generation(signal_information.signal_power))
         return signal_information
 
     def ase_generation(self):
@@ -124,25 +128,25 @@ class Line:
         return ase
 
     def nli_generation(self, signal_power):
-        # RS = 32 GHz
         nli = signal_power ** 3 * self.etaNLI() * (self._n_amplifiers - 1)
         return nli
 
     def etaNLI(self):
-        channel = 10
+        channels = 10
         Rs = 32e9
-        etaNLI = ((16 / (27 * pi)) * math.log(
-            (pi ** 2) *
-            self._constant["B2"] *
-            Rs ** 2 * (channel ** (2 * Rs / 50e9)) / (2 * self._constant["A"] * 1e-3)) *
-                  (self._constant["GAMMA"] ** 2) * (self._length ** 2) / (
-                              4 * self._constant["A"] * (self._constant["B2"] * Rs ** 3)))
+        B2 = self._constant["B2"]
+        a = self._constant["A"]
+        gamma = self._constant["GAMMA"]
+        logArg = (pi ** 2 * B2 * Rs ** 2 * (channels ** (2 * (Rs/50e9))))/ (2 * a * 1e-3)
+        extPart = (gamma ** 2) / (4 * a * B2 * (Rs **3))
+        etaNLI = 16 / (27 * pi) * (math.log(logArg)) * extPart
         return etaNLI
 
-    def optimized_launch_power(self, signal_power):
+    def optimized_launch_power(self):
         Bn = 12.5e9
         opt_pwr = (
-            (self.noise_figure * self.length * signal_power) /
+            (self.noise_figure * self.length * self._launch_power) /
             (2 * Bn) * self.etaNLI()
         ) ** (1/3)
+        # opt_pwr = (self.ase_generation() / 2 * self.nli_generation(signal_power)) ** (1/3)
         return opt_pwr
