@@ -94,7 +94,6 @@ class Node:
             return signal_information
 
     def closeConnection(self, path, channel, totalPath):
-        # todo forse mi serve un path copy
         if len(path) > 1:
             path.pop(0)
             if (totalPath is not None) & (channel is not None):

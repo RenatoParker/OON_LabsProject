@@ -1,3 +1,4 @@
+import numpy
 import pandas as pd
 import random
 
@@ -15,10 +16,10 @@ class Network:
     def __init__(self, nodes):
         self._nodes = nodes
         self._lines = {}
-        self._switching_matrix = {}  # todo: non devo metterla nel costruttore?
+        self._switching_matrix = {}
         self._route_space = pd.DataFrame(None, columns=["Path", "Status"])
         self._weighted_paths = pd.DataFrame({
-            'attributes': ["latency", "signal_noise", "noise_ratio"],
+            'attributes': ["latency", "SNR", "Noise Power"],
         })
 
         for node in self._nodes.values():
@@ -53,8 +54,13 @@ class Network:
     def route_space(self, route_space):
         self._route_space = route_space
 
+    def returnTopologyStats(self):
+        return {
+            "nodeNo": len(self._nodes),
+            "linkNo": len(self._lines)
+        }
+
     def initRouteSpace(self):
-        # sto modificando in modo da avere una sola riga per ogni path
         data = []
         for startingNode in self._nodes:
             for endNode in self._nodes:
@@ -80,7 +86,6 @@ class Network:
 
     def computeWeightedPaths(self):
         allPaths = []
-        # todo non funziona
         self._weighted_paths.set_index('attributes', drop=True, inplace=True)
         for startingNode in self._nodes:
             for endNode in self._nodes:
@@ -90,7 +95,7 @@ class Network:
                     signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
                     signalPropagated = self.probe(SignalInformation.SignalInformation(0.001, path.copy()))
                     if signalPropagated.noise_power > 0:
-                        noise_ratio = 10 * math.log(0.001 / signalPropagated.noise_power, 10)
+                        noise_ratio = 0.001 / (signalPropagated.noise_power * 10)
                     else:
                         noise_ratio = 0
                     self._weighted_paths[self.pathToKey(path)] = [signalPropagated.latency, signalPropagated.noise_power, noise_ratio]
@@ -131,17 +136,9 @@ class Network:
 
     def calculate_bit_rate(self, lightpath, transceiver):
         path = lightpath.path
-        GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
+        GSNR = self._weighted_paths[self.pathToKey(path)].SNR
         Rs = lightpath.rs
         Bn = 12.5e9
-
-        # print(self._weighted_paths[self.pathToKey(path)])
-
-        # print("GSNR retrived:", GSNR)
-        # print(2 * erfcinv(2 * 1e-3) ** 2 * (Rs / Bn))
-        # print((14 / 3) * erfcinv((3 / 2) * 1 * 10e-3) ** 2 * (Rs / Bn))
-        # print(10 * erfcinv((8 / 3) * 1 * 10e-3) ** 2 * (Rs / Bn))
-
         bitRate = 0
 
         if transceiver == "fixed_rate":
@@ -188,14 +185,15 @@ class Network:
                 rs_update *= matrix * lineObj.state
             self._route_space.at[index, "Status"] = rs_update
 
-    def propagate(self, signal_information, channel):
+    def propagate(self, signal_information, channel, bitRateAndGSNR):
         totalPath = signal_information.path.copy()
         while len(signal_information.path) > 1:
             start_node = self._nodes[signal_information.path[0]]
             line = self._lines[signal_information.path[0] + signal_information.path[1]]
             line.state[channel] = 0
+            line.bit_rate += bitRateAndGSNR[0]
             signal_information = start_node.propagate(signal_information, line, channel, totalPath)
-            self._weighted_paths[self.pathToKey(totalPath)]["signal_noise"] = signal_information._noise_power
+            self._weighted_paths[self.pathToKey(totalPath)]["SNR"] = signal_information._noise_power
             # GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
@@ -260,7 +258,7 @@ class Network:
         snrs_paths = []
         # devo scorrere prima tutti i path e poi capire quale ha il migliore SNR
         for path in paths:
-            snrs.append(self._weighted_paths[self.pathToKey(path)].noise_ratio)
+            snrs.append(self._weighted_paths[self.pathToKey(path)].SNR)
             snrs_paths.append(path)
         while len(snrs_paths) > 0:
             maxSnr = max(snrs)
@@ -334,7 +332,7 @@ class Network:
                         print("this path do not support minimum BitRate")
                         return [0,0]
                     connection.bit_rate = bitRateAndGSNR[0]
-                    pathSignal = self.propagate(signal, pathAndChannel[1])
+                    pathSignal = self.propagate(signal, pathAndChannel[1], bitRateAndGSNR)
                     #todo
                     # print("New path occupied:", pathAndChannel[0], "with channel: ", pathAndChannel[1])
                     self.updateRouteSpace(pathAndChannel[0])
@@ -346,21 +344,26 @@ class Network:
                     return bitRateAndGSNR
 
     def createAndManageConnections(self, trafficMatrix, label):
-        zero = 0
-        # todo questo while è da rivedere: per ora controllo di non trovare 36 volte 0 ma non va bene perchè i numeri sono presi a cso
 
         allocatedConnections = 0
         blockingEvent = 0
         startingMatrix = np.array(trafficMatrix)
         oldMatrix = np.array(trafficMatrix)
         GSNRavg = 0
+        netIsSaturated = False
+        i = 0
 
-        while zero < 200:
+        connections = []
+
+        while not netIsSaturated | (numpy.sum(startingMatrix) == 0):
             row = random.randint(0, len(trafficMatrix[0]) - 1)
             col = random.randint(0, len(trafficMatrix[0]) - 1)
 
             if startingMatrix[row][col] > 0:
-                bitRateAndGSNR = self.stream([Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)], label)
+                i += 1
+                newConnection = [Connection.Connection(self._nodes[chr(65 + row)],self._nodes[chr(65 + col)], 1)]
+                bitRateAndGSNR = self.stream(newConnection, label)
+                connections.append(newConnection)
                 bit_rate = bitRateAndGSNR[0]
                 GSNR = bitRateAndGSNR[1]
                 if bit_rate > 0:
@@ -375,14 +378,24 @@ class Network:
                         startingMatrix[row][col] = 0
                 if bit_rate == -1:
                     blockingEvent += 1
+            if (row != col) & (i > 18):
+                i += 1
+                netIsSaturated = ( blockingEvent / allocatedConnections) > 0.1
 
-            else:
-                zero += 1
-                blockingEvent += 1
+        perLinkGSNR = []
+        perLinkBitRate = []
+
+        # for value in connections:
+        #     print(value[0].latency)
+
+        # print("ASDFGH")
+        for label in self._lines:
+            line = self._lines[label]
+            # print(line.bit_rate / 10e9)
+            perLinkBitRate.append(line.bit_rate / 10e9)
 
         GSNRavg = GSNRavg / allocatedConnections
         print(" - - - - - - - - - -")
-
         print("Total allocated connection:\t",allocatedConnections)
         diff = np.abs(startingMatrix - oldMatrix)
         bitrateAllocated = 0
@@ -399,7 +412,12 @@ class Network:
             "bitrateAllocated": bitrateAllocated,
             "allocatedConnections": allocatedConnections,
             "blockingEvent": blockingEvent,
-            "GSNRavg": GSNRavg
+            "GSNRavg": GSNRavg,
+            "netIsSaturated": netIsSaturated,
+            "perLinkBitRateAvg": sum(perLinkBitRate) / len(perLinkBitRate),
+            "perLinkBitRateMin": min(perLinkBitRate),
+            "perLinkBitRateMax": max(perLinkBitRate)
+
         }
 
         self.freeNet()

@@ -18,7 +18,8 @@ class Line:
         self._n_amplifiers = int(length // (80 * 1000))
         self._gain = 16
         self._noise_figure = 3
-        self._launch_power = 10
+        self._launch_power = 0.01
+        self._bit_rate = 0
         print("New line created:", "\t", "Label: ", self._label, "\t", "Length:", self._length)
 
         self._constant = {
@@ -35,6 +36,14 @@ class Line:
     @label.setter
     def label(self, label):
         self._label = label
+
+    @property
+    def bit_rate(self):
+        return self._bit_rate
+
+    @bit_rate.setter
+    def bit_rate(self, bit_rate):
+        self._bit_rate = bit_rate
 
     @property
     def length(self):
@@ -96,17 +105,10 @@ class Line:
         return float(self._length / (scipy.constants.speed_of_light * (2 / 3)))
 
     def noise_generation(self, signal_power):
-        # todo 9.1
-        # todo la lunghezza nelle slide è messa in km, quindi qua che ci va?
-        # GNR deve essere tra 20 e 30
         loss = 10 ** (-self._constant["aDb"] * (self._length ) / 10)
         Bn = 12.5e9
         Pnli = self.nli_generation(signal_power) * (signal_power ** 3) * Bn * loss * self._gain
-
         GSNR = signal_power / (self.ase_generation() + Pnli)
-        # print("GSNR COMPUTED:", GSNR)
-        # if (GSNR > 1000):
-        #     print("grande")
         return GSNR
 
     # Define a propagate method that updates the signal information modifying its
@@ -150,3 +152,4 @@ class Line:
         ) ** (1/3)
         # opt_pwr = (self.ase_generation() / 2 * self.nli_generation(signal_power)) ** (1/3)
         return opt_pwr
+
