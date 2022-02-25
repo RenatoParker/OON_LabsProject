@@ -194,7 +194,6 @@ class Network:
             line.bit_rate += bitRateAndGSNR[0]
             signal_information = start_node.propagate(signal_information, line, channel, totalPath)
             self._weighted_paths[self.pathToKey(totalPath)]["SNR"] = signal_information._noise_power
-            # GSNR = self._weighted_paths[self.pathToKey(path)].signal_noise
         for node in totalPath:
             self._nodes[node].switching_matrix = self._switching_matrix[node]
         return signal_information
@@ -305,7 +304,6 @@ class Network:
             latencies_paths.remove(pathOfMin)
 
     def stream(self, connections, label="latency"):
-
         for connection in connections:
             if label == "latency":
                 pathAndChannel = self.find_best_latency(connection.input.label, connection.output.label)
@@ -384,11 +382,6 @@ class Network:
 
         perLinkGSNR = []
         perLinkBitRate = []
-
-        # for value in connections:
-        #     print(value[0].latency)
-
-        # print("ASDFGH")
         for label in self._lines:
             line = self._lines[label]
             perLinkGSNR.append(self._weighted_paths[label].SNR)
@@ -425,7 +418,6 @@ class Network:
         }
 
         self.freeNet()
-
         return simulationResults
 
     def freeConnection(self, path, channel):

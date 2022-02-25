@@ -15,7 +15,7 @@ if __name__ == '__main__':
             nodeData = nodeValue
             nodeData["label"] = nodeKey
             # il transceiver non è specificato nei file; in teoria c'è un default nel costruttore del nodo
-            nodeData["transceiver"] = "flex_rate"
+            nodeData["transceiver"] = "shannon"
             new_node = Node.Node(nodeData)
             nodes_full[nodeKey] = new_node
 
@@ -25,6 +25,7 @@ if __name__ == '__main__':
         for nodeKey, nodeValue in nodesJson.items():
             nodeData = nodeValue
             nodeData["label"] = nodeKey
+            nodeData["transceiver"] = "flex_rate"
             new_node = Node.Node(nodeData)
             nodes_not_full[nodeKey] = new_node
 
