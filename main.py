@@ -75,6 +75,10 @@ if __name__ == '__main__':
             perLinkBitRateMin = []
             perLinkBitRateMax = []
 
+            perLinkGSNRAvg = []
+            perLinkGSNRMin = []
+            perLinkGSNRMax = []
+
             for res in simulationResults:
                 print(res)
                 avgBitrateAllocated += res["bitrateAllocated"]
@@ -86,9 +90,15 @@ if __name__ == '__main__':
                 allocatedConnections.append(res["allocatedConnections"])
                 blockingEvent.append(res["blockingEvent"])
                 netIsSaturated.append(res["netIsSaturated"])
+
                 perLinkBitRateAvg.append(res["perLinkBitRateAvg"])
                 perLinkBitRateMin.append(res["perLinkBitRateMin"])
                 perLinkBitRateMax.append(res["perLinkBitRateMax"])
+
+                perLinkGSNRAvg.append(res["perLinkGSNRAvg"])
+                perLinkGSNRMin.append(res["perLinkGSNRMin"])
+                perLinkGSNRMax.append(res["perLinkGSNRMax"])
+
 
             avgBitrateAllocated /= len(simulationResults)
             avgAllocatedConnections /= len(simulationResults)
@@ -137,6 +147,17 @@ if __name__ == '__main__':
             plt.gca().set(title='perLinkBitRate max  Histogram ' + fom, ylabel='Frequency')
             plt.show()
 
+            plt.hist(perLinkGSNRAvg, bins=20)
+            plt.gca().set(title='perLinkGSNRAvg average  Histogram ' + fom, ylabel='Frequency')
+            plt.show()
+
+            plt.hist(perLinkGSNRMin, bins=20)
+            plt.gca().set(title='perLinkGSNRMin min  Histogram ' + fom, ylabel='Frequency')
+            plt.show()
+
+            plt.hist(perLinkGSNRMax, bins=20)
+            plt.gca().set(title='perLinkGSNRMax max  Histogram ' + fom, ylabel='Frequency')
+            plt.show()
 
 
             # plt.bar(emme, bitrateAllocated)

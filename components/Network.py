@@ -391,8 +391,9 @@ class Network:
         # print("ASDFGH")
         for label in self._lines:
             line = self._lines[label]
-            # print(line.bit_rate / 10e9)
+            perLinkGSNR.append(self._weighted_paths[label].SNR)
             perLinkBitRate.append(line.bit_rate / 10e9)
+
 
         GSNRavg = GSNRavg / allocatedConnections
         print(" - - - - - - - - - -")
@@ -416,7 +417,10 @@ class Network:
             "netIsSaturated": netIsSaturated,
             "perLinkBitRateAvg": sum(perLinkBitRate) / len(perLinkBitRate),
             "perLinkBitRateMin": min(perLinkBitRate),
-            "perLinkBitRateMax": max(perLinkBitRate)
+            "perLinkBitRateMax": max(perLinkBitRate),
+            "perLinkGSNRAvg": sum(perLinkGSNR) / len(perLinkGSNR),
+            "perLinkGSNRMin": min(perLinkGSNR),
+            "perLinkGSNRMax": max(perLinkGSNR)
 
         }
 
