@@ -55,9 +55,37 @@ class Network:
         self._route_space = route_space
 
     def returnTopologyStats(self):
+        nodeDeg = 0
+        nodeDegMax = 0
+        nodeDegMin = 1000
+        for label in self._nodes:
+            nodeDeg += len(self._nodes[label].connected_node)
+            if nodeDegMax< len(self._nodes[label].connected_node):
+                nodeDegMax = len(self._nodes[label].connected_node)
+            if nodeDegMin > len(self._nodes[label].connected_node):
+                nodeDegMin = len(self._nodes[label].connected_node)
+
+        linkLengthAvg = 0
+        linkLengthMax = 0
+        linkLengthMin = 999999999999999999999999999
+        for linkLabel in self._lines:
+            linkLengthAvg += self._lines[linkLabel].length
+            if linkLengthMax < self._lines[linkLabel].length:
+                linkLengthMax = self._lines[linkLabel].length
+            if linkLengthMin > self._lines[linkLabel].length:
+                linkLengthMin = self._lines[linkLabel].length
+
         return {
             "nodeNo": len(self._nodes),
-            "linkNo": len(self._lines)
+            "linkNo": len(self._lines),
+            "nodeDegAVG": nodeDeg / len(self._nodes),
+            "nodeDegMax": nodeDegMax,
+            "nodeDegMin": nodeDegMin,
+            "linkLengthAvg": linkLengthAvg/len(self._lines),
+            "linkLengthMax": linkLengthMax,
+            "linkLengthMin": linkLengthMin,
+            "latency": self.weighted_paths.loc["latency",:].values.flatten().tolist(),
+            "SNR": self.weighted_paths.loc["SNR", :].values.flatten().tolist()
         }
 
     def initRouteSpace(self):
@@ -185,6 +213,7 @@ class Network:
                 rs_update *= matrix * lineObj.state
             self._route_space.at[index, "Status"] = rs_update
 
+
     def propagate(self, signal_information, channel, bitRateAndGSNR):
         totalPath = signal_information.path.copy()
         while len(signal_information.path) > 1:
@@ -211,7 +240,7 @@ class Network:
         plt.ylim(-100000, 600000)
         for node in self._nodes.values():
             print(node.position[0], node.position[1])
-            draw_circle = plt.Circle((node.position[0], node.position[1]), 30000, color='r')
+            draw_circle = plt.Circle((node.position[0], node.position[1]), 15000, color='r')
             axes.add_artist(draw_circle)
 
         for line in self._lines.values():

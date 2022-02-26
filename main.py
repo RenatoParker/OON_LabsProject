@@ -1,3 +1,5 @@
+import numpy as np
+
 from components import Network
 from components import Node
 from pathlib import Path
@@ -43,6 +45,21 @@ if __name__ == '__main__':
     net_not_full.computeWeightedPaths()
     notFullTopologyStats = net_not_full.returnTopologyStats()
     print(notFullTopologyStats)
+
+    # print(type(fullTopologyStats["latency"]))
+
+    # list = range(1, len(fullTopologyStats["latency"]))
+    #
+    # print(fullTopologyStats["latency"])
+    # plt.bar(list,
+    #         fullTopologyStats["SNR"].values.flatten())
+
+    plt.bar(list(range(0,len(fullTopologyStats["latency"]))), fullTopologyStats["latency"] , color='#b5ffb9', edgecolor='white' )
+    plt.title("latency")
+    plt.show()
+    plt.bar(list(range(0,len(fullTopologyStats["SNR"]))), fullTopologyStats["SNR"] , color='#b5ffb9', edgecolor='white')
+    plt.title("SNR")
+    plt.show()
 
     # todo confronta in vari transceiver
     for fom in ["latency", "snr"]:

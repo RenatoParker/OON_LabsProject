@@ -150,6 +150,5 @@ class Line:
             (self.noise_figure * self.length * self._launch_power) /
             (2 * Bn) * self.etaNLI()
         ) ** (1/3)
-        # opt_pwr = (self.ase_generation() / 2 * self.nli_generation(signal_power)) ** (1/3)
         return opt_pwr
 
