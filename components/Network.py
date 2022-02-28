@@ -187,7 +187,8 @@ class Network:
                 bitRate = 400 * 10e9
 
         if transceiver == "shannon":
-            bitRate = 2 * 32 * 10e9 * math.log((1 + GSNR * (Rs / Bn)), 2) * 10e9
+            bitRate = 2 * 32 * 10e9 * math.log((1 + GSNR * (Rs / Bn)), 2)
+
 
         return [bitRate, GSNR]
 
@@ -410,10 +411,12 @@ class Network:
                 netIsSaturated = ( blockingEvent / allocatedConnections) > 0.1
 
         perLinkGSNR = []
+        perLinkLatency = []
         perLinkBitRate = []
         for label in self._lines:
             line = self._lines[label]
             perLinkGSNR.append(self._weighted_paths[label].SNR)
+            perLinkLatency.append(self._weighted_paths[label].latency)
             perLinkBitRate.append(line.bit_rate / 10e9)
 
 
@@ -442,9 +445,15 @@ class Network:
             "perLinkBitRateMax": max(perLinkBitRate),
             "perLinkGSNRAvg": sum(perLinkGSNR) / len(perLinkGSNR),
             "perLinkGSNRMin": min(perLinkGSNR),
-            "perLinkGSNRMax": max(perLinkGSNR)
+            "perLinkGSNRMax": max(perLinkGSNR),
+            "perLinkLatencyAvg": sum(perLinkLatency) / len(perLinkLatency),
+            "perLinkLatencyMin": min(perLinkLatency),
+            "perLinkLatencyRMax": max(perLinkLatency)
 
         }
+
+        print("AAAA")
+        print(simulationResults["perLinkLatencyMin"])
 
         self.freeNet()
         return simulationResults
